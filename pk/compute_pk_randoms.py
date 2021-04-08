@@ -8,7 +8,7 @@ import sys, os, copy, time, pyfftw
 import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
-sys.path.append('/home/ophilcox/bk_opt/src')
+sys.path.append('../src')
 from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
 from covariances_pk import applyC_alpha, applyN
 
@@ -39,6 +39,9 @@ OmegaM_fid = 0.31
 
 # Directories
 outdir = '/projects/QUIJOTE/Oliver/pk_opt/' # to hold output Fisher matrices
+
+# Fiducial power spectrum input
+pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
 
 #### In principle, nothing below here needs to be altered for BOSS
 
@@ -71,8 +74,6 @@ if wtype==0:
 elif wtype==1:
     weight_str = 'ml'
     from covariances_pk import applyCinv
-    # Power spectrum input
-    pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
 else:
     raise Exception("Incorrect weight type!")
 
@@ -130,38 +131,11 @@ shot_fac = (np.mean(data['WEIGHT']**2.).compute()+alpha_ran*np.mean(randoms['WEI
 print("alpha = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
 
 # Compute alpha for nbar rescaling
-def load_data_w(ZMIN,ZMAX):
-    """Load in Patchy data with specified z cut and cosmology."""
-    # Patchy input
-    dat_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/ngc_mocks/'
-    datfile = dat_dir+'Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(1).zfill(4)
-    data = CSVCatalog(datfile,['RA', 'DEC', 'Z', 'MSTAR', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
-
-    valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
-    data = data[valid]
-
-    # Add the completeness weights
-    data['WEIGHT'] = 1.* data['VETO FLAG'] * data['FIBER COLLISION']
-    return data['WEIGHT']
-
-def load_randoms_w(ZMIN,ZMAX):
-    """Load in Patchy randoms with specified z cut and cosmology."""
-    randfile = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
-    randoms = CSVCatalog(randfile,['RA', 'DEC', 'Z', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
-
-    # Cut to required redshift range
-    valid = (randoms['Z'] > ZMIN)&(randoms['Z'] < ZMAX)
-    randoms = randoms[valid]
-
-    randoms['WEIGHT'] = 1.*randoms['VETO FLAG']*randoms['FIBER COLLISION']
-
-    return randoms['WEIGHT']
-
 print("Computing Patchy alpha factor from weights")
 if patch!='ngc' and ztype!='z1':
     raise Exception("NOT CONFIGURED FOR OTHER PATCHES!!")
-data_w = load_data_w(ZMIN,ZMAX).sum().compute()
-rand_w = load_randoms_w(ZMIN,ZMAX).sum().compute()
+data_w = load_data(1,ZMIN,ZMAX,cosmo_coord,weight_only=True).sum().compute()
+rand_w = load_randoms(1,ZMIN,ZMAX,cosmo_coord,weight_only=True).sum().compute()
 alpha_ran0 = data_w/rand_w
 print("alpha_ran = %.3f"%alpha_ran0)
 

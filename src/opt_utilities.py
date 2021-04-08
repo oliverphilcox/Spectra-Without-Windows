@@ -15,8 +15,8 @@ patchy_data_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/'
 mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/'
 
 ########################### HANDLING DATA ###########################
-def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
-    """Load in BOSS/Patchy data with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy."""
+def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4,weight_only=False):
+    """Load in BOSS/Patchy data with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only=True, we only return weights."""
     if sim_no==-1:
         # BOSS FITS File
         datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_North.fits'
@@ -34,9 +34,6 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
     else:
         print("Loaded %d galaxies from simulation %d \n"%(len(data),sim_no))
 
-    # Convert to Cartesian co-ordinates using the fiducial cosmology
-    data['Position'] = transform.SkyToCartesian(data['RA'], data['DEC'], data['Z'], cosmo=cosmo)
-
     if sim_no==-1:
         # Add completeness + systematic weights
         data['WEIGHT'] = data['WEIGHT_SYSTOT'] * (data['WEIGHT_NOZ'] + data['WEIGHT_CP'] - 1.)
@@ -45,18 +42,23 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
         # Add the completeness weights
         data['WEIGHT'] = 1.* data['VETO FLAG'] * data['FIBER COLLISION']
 
+    if weight_only: return data['WEIGHT']
+
+    # Convert to Cartesian co-ordinates using the fiducial cosmology
+    data['Position'] = transform.SkyToCartesian(data['RA'], data['DEC'], data['Z'], cosmo=cosmo)
+
     if fkp_weights:
         print("Adding FKP weights!")
         if sim_no!=-1:
             data['WEIGHT_FKP'] = 1./(1.+P_fkp*data['NBAR'])
     else:
         print("No FKP weights!")
-        data['WEIGHT_FKP'] = np.ones_like(data['NBAR'])#1./(1.+data['NBAR']*P_fkp)
+        data['WEIGHT_FKP'] = np.ones_like(data['NBAR'])
     return data
 
 
-def load_randoms(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
-    """Load in BOSS/Patchy randoms with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy."""
+def load_randoms(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4,weight_only=False):
+    """Load in BOSS/Patchy randoms with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only we only return weights."""
     if sim_no!=-1:
         randfile = patchy_data_dir+'Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
         randoms = CSVCatalog(randfile,['RA', 'DEC', 'Z', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
@@ -70,14 +72,16 @@ def load_randoms(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
 
     print("Loaded %d randoms \n"%len(randoms))
 
-    # Convert to Cartesian co-ordinates using the fiducial cosmology
-    randoms['Position'] = transform.SkyToCartesian(randoms['RA'], randoms['DEC'], randoms['Z'], cosmo=cosmo)
-
     if sim_no==-1:
         randoms['WEIGHT'] = 1.*randoms['Weight'] # all unity here
         randoms['NBAR'] = randoms['NZ']
     else:
         randoms['WEIGHT'] = 1.*randoms['VETO FLAG']*randoms['FIBER COLLISION']
+
+    if weight_only: return randoms['WEIGHT']
+
+    # Convert to Cartesian co-ordinates using the fiducial cosmology
+    randoms['Position'] = transform.SkyToCartesian(randoms['RA'], randoms['DEC'], randoms['Z'], cosmo=cosmo)
 
     if fkp_weights:
         print("Adding FKP weights!")

@@ -10,7 +10,7 @@ import sys, os, copy, time, pyfftw
 import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
-sys.path.append('/home/ophilcox/bk_opt/src')
+sys.path.append('../src')
 from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
 from covariances_pk import applyC_alpha
 
@@ -41,6 +41,9 @@ OmegaM_fid = 0.31
 
 # Directories
 outdir = '/projects/QUIJOTE/Oliver/pk_opt/' # to hold output Fisher matrices
+
+# Fiducial power spectrum input
+pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
 
 #### In principle, nothing below here needs to be altered for BOSS
 
@@ -73,8 +76,6 @@ if wtype==0:
 elif wtype==1:
     weight_str = 'ml'
     from covariances_pk import applyCinv
-    # Power spectrum input
-    pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
 else:
     raise Exception("Incorrect weight type!")
 
