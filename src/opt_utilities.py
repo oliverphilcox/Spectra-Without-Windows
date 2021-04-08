@@ -9,17 +9,21 @@ from nbodykit import setup_logging, style
 from scipy.interpolate import interp1d
 import sympy as sp
 
+#### Input directories
+boss_data_dir = '/projects/QUIJOTE/Oliver/boss_gal/'
+patchy_data_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/'
+mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/'
+
 ########################### HANDLING DATA ###########################
 def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
     """Load in BOSS/Patchy data with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy."""
     if sim_no==-1:
         # BOSS FITS File
-        datfile = '/projects/QUIJOTE/Oliver/boss_gal/galaxy_DR12v5_CMASSLOWZTOT_North.fits'
+        datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_North.fits'
         data = FITSCatalog(datfile)
     else:
         # Patchy input
-        dat_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/ngc_mocks/'
-        datfile = dat_dir+'Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
+        datfile = patchy_dat_dir+'ngc_mocks/Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
         data = CSVCatalog(datfile,['RA', 'DEC', 'Z', 'MSTAR', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
 
     valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
@@ -54,10 +58,10 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
 def load_randoms(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4):
     """Load in BOSS/Patchy randoms with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy."""
     if sim_no!=-1:
-        randfile = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
+        randfile = patchy_data_dir+'Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
         randoms = CSVCatalog(randfile,['RA', 'DEC', 'Z', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
     else:
-        randfile = '/projects/QUIJOTE/Oliver/boss_gal/random0_DR12v5_CMASSLOWZTOT_North.fits'
+        randfile = boss_data_dir+'random0_DR12v5_CMASSLOWZTOT_North.fits'
         randoms = FITSCatalog(randfile)
 
     # Cut to required redshift range
@@ -89,9 +93,9 @@ def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran):
     This has no window effects since it does not involve particle samples.
     It is normalized by the alpha factor = Sum (data weights) / Sum (random weights)."""
     if sim_no==-1:
-        file_name = '/projects/QUIJOTE/Oliver/boss_masks/nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     else:
-        file_name = '/projects/QUIJOTE/Oliver/boss_masks/nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
 
     if not os.path.exists(file_name):
         raise Exception("n_bar file '%s' has not been computed!"%file_name)

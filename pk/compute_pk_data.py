@@ -107,6 +107,8 @@ cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 
 # Load data and paint to grid
 data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,fkp_weights=False);
+if patch!='ngc' or ztype!='z1':
+    raise Exception("NOT CONFIGURED FOR OTHER PATCHES!!")
 randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,fkp_weights=False);
 diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
 

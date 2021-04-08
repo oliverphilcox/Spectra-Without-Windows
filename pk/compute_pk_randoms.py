@@ -158,6 +158,8 @@ def load_randoms_w(ZMIN,ZMAX):
     return randoms['WEIGHT']
 
 print("Computing Patchy alpha factor from weights")
+if patch!='ngc' and ztype!='z1':
+    raise Exception("NOT CONFIGURED FOR OTHER PATCHES!!")
 data_w = load_data_w(ZMIN,ZMAX).sum().compute()
 rand_w = load_randoms_w(ZMIN,ZMAX).sum().compute()
 alpha_ran0 = data_w/rand_w
