@@ -5,6 +5,7 @@ This repository contains details of the window-free analysis of BOSS DR12 data. 
 # TODO:
 - Add other patches
 - Add n-bar code
+- Add compression code?
 
 ### Outline
 - [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS and 2048 Patchy simulations.
@@ -24,3 +25,9 @@ We additionally use a number of the BOSS data products available on the BOSS [SA
 
 ### Authors
 - [Oliver Philcox](mailto:ohep2@cantab.ac.uk) (Princeton / IAS)
+
+### Publications
+Codes and data from this repository are used in the following publications:
+
+- Philcox (2020, [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
+- Philcox (2021, in prep.): Description of the unwindowed bispectrum estimators.

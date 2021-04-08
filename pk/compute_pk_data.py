@@ -51,11 +51,6 @@ pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30
 if patch=='ngc' and z_type=='z1':
     boxsize_grid = np.array([1350,2450,1400])
     grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
-
-# box dimensions (scaled from BOSS release)
-if patch=='ngc' and z_type=='z1':
-    boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
 else:
     raise Exception()
 

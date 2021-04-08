@@ -23,7 +23,7 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4,weight_only=Fal
         data = FITSCatalog(datfile)
     else:
         # Patchy input
-        datfile = patchy_dat_dir+'ngc_mocks/Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
+        datfile = patchy_data_dir+'ngc_mocks/Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
         data = CSVCatalog(datfile,['RA', 'DEC', 'Z', 'MSTAR', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
 
     valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
