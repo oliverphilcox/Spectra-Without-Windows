@@ -1,8 +1,10 @@
-# Windowless BOSS Power Spectra
+# Windowless BOSS Bispectra
 
 ### Overview
 
-To compute power spectra, there are two steps:
+# TO WRITE!
+
+To compute bispectra, there are two steps:
 1. Run the ```compute_pk_randoms.py``` script to generate and analyze uniformly distributed particles. These are used to compute the Fisher matrix. This script should be run with 50-100 choices of input parameter ```rand_it```.
 2. Run the ```compute_pk_data.py``` script to analyze a specific Patchy simulation or BOSS data. Step (1) must be computed before this is run.
 
