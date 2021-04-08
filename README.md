@@ -18,4 +18,4 @@ To run the analysis code one requires:
 We additionally use a number of the BOSS data products available on the BOSS [SAS](https://data.sdss.org/sas/dr12/boss/lss/).
 
 ### Authors
-- [Oliver Philcox](mailto: ohep2@cantab.ac.uk) (Princeton / IAS)
+- [Oliver Philcox](mailto:ohep2@cantab.ac.uk) (Princeton / IAS)
