@@ -13,19 +13,16 @@ from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_dat
 from covariances_pk import applyC_alpha, applyN
 
 # Read command line arguments
-if len(sys.argv)!=4:
+if len(sys.argv)!=6:
     raise Exception("Need to specify random iteration, weight-type and grid factor!")
 else:
     # If sim no = -1 the true BOSS data is used
     rand_it = int(sys.argv[1])
-    wtype = int(sys.argv[2]) # 0 for FKP, 1 for ML
-    grid_factor = int(sys.argv[3])
+    z_type = str(sys.argv[3]) # z1 or z3
+    wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
+    grid_factor = float(sys.argv[5])
 
 ################################ INPUT PARAMETERS ##############################
-
-## Simulation parameters
-patch = 'ngc'
-z_type = 'z1'
 
 ## k-space binning
 k_min = 0.0
@@ -45,25 +42,33 @@ pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30
 
 #### In principle, nothing below here needs to be altered for BOSS
 
-# box dimensions (scaled from BOSS release)
-if patch=='ngc' and z_type=='z1':
-    boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
-
-# box dimensions (scaled from BOSS release)
-if patch=='ngc' and z_type=='z1':
-    boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
-else:
-    raise Exception()
-
 # Redshifts
 if z_type=='z1':
     ZMIN = 0.2
     ZMAX = 0.5
     z = 0.38
+elif z_type=='z3':
+    ZMIN = 0.5
+    ZMAX  = 0.75
+    z = 0.61
 else:
-    raise Exception()
+    raise Exception("Wrong z-type")
+
+# Load survey dimensions
+if z_type=='z1' and patch=='ngc':
+    boxsize_grid = np.array([1350,2450,1400])
+    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
+elif z_type=='z1' and patch=='sgc':
+    boxsize_grid = np.array([1000,1900,1100])
+    grid_3d = np.asarray(np.asarray([190.,360.,210.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='ngc':
+    boxsize_grid = np.array([1800,3400,1900])
+    grid_3d = np.asarray(np.asarray([340.,650.,360.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='sgc':
+    boxsize_grid = np.array([1000,2600,1500])
+    grid_3d = np.asarray(np.asarray([190.,500.,280.])/grid_factor,dtype=int)
+else:
+    raise Exception("Wrong z-type / patch")
 
 # Create directories
 if not os.path.exists(outdir): os.makedirs(outdir)
@@ -80,7 +85,7 @@ else:
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
 print("Random iteration: %d"%rand_it)
-print("Grid-Factor: %d"%grid_factor)
+print("Grid-Factor: %.1f"%grid_factor)
 print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
@@ -96,11 +101,11 @@ init = time.time()
 
 ################################# LOAD DATA ####################################
 
-print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %d"%(rand_it,patch,z_type,weight_str,grid_factor))
+print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
 
 # First check that the simulation hasn't already been analyzed
-bias_file_name = outdir+'patchy%d_%s_%s_%s_g%d_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-fish_file_name = outdir+'patchy%d_%s_%s_%s_g%d_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+bias_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
     print("Output already exists; exiting!\n")
@@ -222,9 +227,10 @@ del nbar, MAS_mat, Yk_lm, Yr_lm
 ### Compute Fisher matrix
 fish = np.zeros((n_bins,n_bins))
 
-print("Computing Fisher matrix")
+print("\n## Computing Fisher matrix")
 for alpha in range(n_bins):
 
+    if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
     this_Cinv_C_a_Cinv_diff = Cinv_C_a_Cinv_diff[alpha]
     for beta in range(n_bins):
         fish[alpha,beta] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*C_a_Ainv_diff[beta]))
@@ -238,7 +244,7 @@ fish = 0.5*(fish+fish.T)
 ### Compute bias term
 q_bias = np.zeros(n_bins)
 
-print("Computing bias term")
+print("\n## Computing bias term")
 for alpha in range(n_bins):
     q_bias[alpha] = 0.5*np.real_if_close(np.sum(Cinv_C_a_Cinv_diff[alpha]*N_Ainv_a))
 del N_Ainv_a

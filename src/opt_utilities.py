@@ -10,29 +10,40 @@ from scipy.interpolate import interp1d
 import sympy as sp
 
 #### Input directories
-boss_data_dir = '/projects/QUIJOTE/Oliver/boss_gal/'
-patchy_data_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/'
-mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/'
+boss_data_dir = '/projects/QUIJOTE/Oliver/boss_gal/' # location of galaxy files
+patchyN_data_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/' # location of Patchy ngc mocks
+patchyS_data_dir = '/projects/QUIJOTE/Oliver/patchy_sgc_mocks/' # location of Patchy sgc mocks
+mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/' # location of nbar files, computed by generate_mask.py
 
 ########################### HANDLING DATA ###########################
-def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4,weight_only=False):
-    """Load in BOSS/Patchy data with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only=True, we only return weights."""
+def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
+    """Load in BOSS/Patchy data with specified patch, z cut, and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only=True, we only return weights."""
     if sim_no==-1:
         # BOSS FITS File
-        datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_North.fits'
+        if patch=='ngc':
+            datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_North.fits'
+        elif patch=='sgc':
+            datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_South.fits'
+        else:
+            raise Exception("Wrong patch!")
         data = FITSCatalog(datfile)
     else:
         # Patchy input
-        datfile = patchy_data_dir+'ngc_mocks/Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
+        if patch=='ngc':
+            datfile = patchyN_data_dir+'ngc_mocks/Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
+        elif patch=='sgc':
+            datfile = patchyS_data_dir+'sgc_mocks/Patchy-Mocks-DR12SGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
+        else:
+            raise Exception("Wrong patch!")
         data = CSVCatalog(datfile,['RA', 'DEC', 'Z', 'MSTAR', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
 
     valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
     data = data[valid]
     data['Z']
     if sim_no==-1:
-        print("Loaded %d galaxies from BOSS\n"%(len(data)))
+        print("Loaded %d %s galaxies from BOSS\n"%(len(data),patch))
     else:
-        print("Loaded %d galaxies from simulation %d \n"%(len(data),sim_no))
+        print("Loaded %d %s galaxies from simulation %d \n"%(len(data),patch,sim_no))
 
     if sim_no==-1:
         # Add completeness + systematic weights
@@ -57,13 +68,23 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4,weight_only=Fal
     return data
 
 
-def load_randoms(sim_no,ZMIN,ZMAX,cosmo,fkp_weights=False,P_fkp=1e4,weight_only=False):
-    """Load in BOSS/Patchy randoms with specified z cut and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only we only return weights."""
+def load_randoms(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
+    """Load in BOSS/Patchy randoms with specified patch, z cut, and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only we only return weights."""
     if sim_no!=-1:
-        randfile = patchy_data_dir+'Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
+        if patch=='ngc':
+            randfile = patchyN_data_dir+'Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
+        elif patch=='sgc':
+            randfile = patchyS_data_dir+'Patchy-Mocks-Randoms-DR12SGC-COMPSAM_V6C_x50.dat'
+        else:
+            raise Exception("Wrong patch!")
         randoms = CSVCatalog(randfile,['RA', 'DEC', 'Z', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
     else:
-        randfile = boss_data_dir+'random0_DR12v5_CMASSLOWZTOT_North.fits'
+        if patch=='ngc':
+            randfile = boss_data_dir+'random0_DR12v5_CMASSLOWZTOT_North.fits'
+        elif patch=='sgc':
+            randfile = boss_data_dir+'random0_DR12v5_CMASSLOWZTOT_South.fits'
+        else:
+            raise Exception("Wrong patch!")
         randoms = FITSCatalog(randfile)
 
     # Cut to required redshift range
@@ -97,10 +118,15 @@ def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran):
     This has no window effects since it does not involve particle samples.
     It is normalized by the alpha factor = Sum (data weights) / Sum (random weights)."""
     if sim_no==-1:
-        file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        if type(grid_factor)==int:
+            file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        else:
+            file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     else:
-        file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-
+        if type(grid_factor)==int:
+            file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        else:
+            file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     if not os.path.exists(file_name):
         raise Exception("n_bar file '%s' has not been computed!"%file_name)
 
@@ -114,8 +140,7 @@ def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=Tr
     Inputs: 3D boxsize, and 3D gridsize.
     """
     # combine the data and randoms into a single catalog
-    fkp = FKPCatalog(data, randoms,BoxSize=boxsize_grid,
-                     nbar='NBAR')
+    fkp = FKPCatalog(data, randoms,BoxSize=boxsize_grid,nbar='NBAR')
 
     assert MAS=='TSC'
     mesh = fkp.to_mesh(Nmesh=grid_3d,fkp_weight='WEIGHT_FKP', comp_weight='WEIGHT', window='tsc')
