@@ -26,4 +26,4 @@ Within the code we can specify the following additional parameters:
 
 ### Data
 
-In the ```data/``` directory, we give the raw unwindowed power spectrum measurements of BOSS and 2048 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.
+In the [data/](data) directory, we give the raw unwindowed power spectrum measurements of BOSS and 2048 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.
