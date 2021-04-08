@@ -109,6 +109,15 @@ init = time.time()
 
 ########################### LOAD DATA ###########################
 
+# Check if simulation has already been analyzed
+if sim_no!=-1:
+    p_alpha_file_name = outdir + 'bk_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+else:
+    p_alpha_file_name = outdir + 'bk_boss_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+if os.path.exists(p_alpha_file_name):
+    print("Simulation has already been computed; exiting!")
+    sys.exit()
+
 if sim_no!=-1:
     print("\n## Loading %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
 else:
@@ -338,12 +347,29 @@ p_alpha = np.matmul(np.linalg.inv(full_fisher),q_alpha)
 
 ########################### SAVE & EXIT ###########################
 
-if sim_no!=-1:
-    p_alpha_file_name = outdir + 'patchy%d_unif_%s_%s_%s_g%.1f_p_alpha_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-else:
-    p_alpha_file_name = outdir + 'boss_unif_%s_%s_%s_g%.1f_p_alpha_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+with open(p_alpha_file_name,"w+") as output:
+    if sim_no==-1:
+        output.write("####### Bispectrum of BOSS #############")
+    else:
+        output.write("####### Bispectrum of Patchy Simulation %d #############"%sim_no)
+    output.write("\n# Patch: %s"%patch)
+    output.write("\n# z-type: %s"%z_type)
+    output.write("\n# Weights: %s"%weight_str)
+    output.write("\n# Fiducial Omega_m: %.3f"%Omfid)
+    output.write("\n# Fiducial h: %.3f"%hfid)
+    output.write("\n# Boxsize: [%.1f, %.1f, %.1f]"%(boxsize_grid[0],boxsize_grid[1],boxsize_grid[2]))
+    output.write("\n# Grid: [%d, %d, %d]"%(grid_3d[0],grid_3d[1],grid_3d[2]))
+    output.write("\n# k-binning: [%.3f, %.3f, %.3f]"%(k_min,k_cut,dk))
+    output.write("\n# Monte Carlo Simulations: %d"%N_bias)
+    output.write("\n#")
+    output.write("\n# Format: k1 | k2 | k3 | B(k1,k2,k3)")
+    output.write("\n############################################")
 
-np.save(p_alpha_file_name,p_alpha)
+    k_av = np.arange(k_min,k_max,dk)+dk/2.
+
+    for i in range(n_bins):
+        a,b,c = bins_index[i]
+        output.write('\n%.4f\t%.4t\t%.4t\t%.8e'%(k_av[a],k_av[b],k_av[c],p_alpha[i]))
 
 duration = time.time()-init
 print("## Saved bispectrum estimates to %s. Exiting after %d seconds (%d minutes)\n"%(p_alpha_file_name,duration,duration//60))

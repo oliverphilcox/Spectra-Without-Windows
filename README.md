@@ -5,6 +5,7 @@ This repository contains details of the window-free analysis of BOSS DR12 data. 
 # TODO:
 - Add other patches
 - Add compression code?
+- Add data!!
 
 ## Outline
 - [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS and 2048 Patchy simulations.

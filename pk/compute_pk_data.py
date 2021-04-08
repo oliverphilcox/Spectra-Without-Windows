@@ -104,6 +104,15 @@ init = time.time()
 
 ################################## LOAD DATA ###################################
 
+# Check if simulation has already been analyzed
+if sim_no!=-1:
+    pk_file_name = out_dir + 'pk_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+else:
+    pk_file_name = out_dir + 'pk_boss_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+if os.path.exists(pk_file_name):
+    print("Simulation has already been computed; exiting!")
+    sys.exit()
+
 if sim_no!=-1:
     print("\n## Analyzing %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
 else:
@@ -182,10 +191,6 @@ for i in range(len(C_a_Cinv_diff)):
 ### Define file names
 bias_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 fish_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-if sim_no!=-1:
-    pk_file_name = out_dir + 'pk_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-else:
-    pk_file_name = out_dir + 'pk_boss_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 combined_bias_file_name = out_dir + 'bias_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 combined_fish_file_name = out_dir + 'fisher_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
@@ -222,13 +227,6 @@ except IOError:
 
 p_alpha = np.matmul(np.linalg.inv(fish),q_alpha-bias)
 
-## Save output
-if sim_no==-1:
-    file_name = outdir+'boss_%s_%s_%s_g%.1f_pk_q_a_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-else:
-    file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q_a_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-np.save(file_name,q_a)
-
 with open(pk_file_name,"w+") as output:
     if sim_no==-1:
         output.write("####### Power Spectrum of BOSS #############")
@@ -242,12 +240,13 @@ with open(pk_file_name,"w+") as output:
     output.write("\n# Boxsize: [%.1f, %.1f, %.1f]"%(boxsize_grid[0],boxsize_grid[1],boxsize_grid[2]))
     output.write("\n# Grid: [%d, %d, %d]"%(grid_3d[0],grid_3d[1],grid_3d[2]))
     output.write("\n# k-binning: [%.3f, %.3f, %.3f]"%(k_min,k_cut,dk))
+    output.write("\n# Monte Carlo Simulations: %d"%N_bias)
     output.write("\n#")
     output.write("\n# Format: k | P0 | P2 | P4")
     output.write("\n############################################")
 
-    for i in range(len(k_good)):
-        output.write('\n%.4f\t%.8e\t%.8e\t%.8e'%(k_good[i],pk[i,0],pk[i,1],pk[i,2]))
+    for i in range(n_k):
+        output.write('\n%.4f\t%.8e\t%.8e\t%.8e'%(k_min+(i+0.5)*dk,p_alpha[i],p_alpha[i+n_k],p_alpha[i+2*n_k]))
 
 ####################################### EXIT ###################################
 
