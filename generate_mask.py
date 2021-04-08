@@ -7,7 +7,10 @@
 #
 # Inputs:
 # - sim_type: 0 for BOSS geometry, 1 for Patchy geometry
+# - patch: Sky region - ngc or sgc.
+# - z_type: Redshift cut - z1 or z3.
 # - grid_factor: Factor by which to reduce the pixel size. The Nyquist frequency is proportional to the inverse of this.
+#
 # Within the code we can also change the output directory, fiducial cosmology and data cuts. Note that the MANGLE mask for BOSS must be downloaded and specified.
 
 ################################# LOAD MODULES #################################
@@ -22,17 +25,15 @@ sys.path.append('src/')
 from opt_utilities import load_data, load_randoms, grid_data, load_coord_grids
 
 # Read command line arguments
-if len(sys.argv)!=3:
-    raise Exception("Need to specify simulation type and grid factor!")
+if len(sys.argv)!=5:
+    raise Exception("Need to specify simulation type, patch, z-type and grid factor!")
 else:
     sim_type = int(sys.argv[1]) # 0 = BOSS, 1 = Patchy
-    grid_factor = float(sys.argv[2])
+    patch = str(sys.argv[2]) # ngc or sgc
+    z_type = str(sys.argv[3]) # z1 or z3
+    grid_factor = float(sys.argv[4])
 
 ############################# INPUT PARAMETERS #################################
-
-# Data cut
-patch = 'ngc'
-z_type = 'z1'
 
 h_fid = 0.676
 OmegaM_fid = 0.31
@@ -41,21 +42,43 @@ OmegaM_fid = 0.31
 outdir = '/projects/QUIJOTE/Oliver/boss_masks/'
 
 # Input mask file
-maskfile = '/projects/QUIJOTE/Oliver/boss_masks/mask_DR12v5_CMASSLOWZTOT_North.ply'
-assert patch=='ngc','need to change mask file!'
+if patch=='ngc':
+    maskfile = '/projects/QUIJOTE/Oliver/boss_masks/mask_DR12v5_CMASSLOWZTOT_North.ply'
+elif patch=='sgc':
+    maskfile = '/projects/QUIJOTE/Oliver/boss_masks/mask_DR12v5_CMASSLOWZTOT_South.ply'
+else:
+    raise Exception("Wrong input patch!")
 
-if z_type=='z1' and patch=='ngc':
-    boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
+### In principle, nothing below here needs to be changed
 
 # Cosmology for co-ordinate conversions
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m=OmegaM_fid)
 
+# Load redshift ranges
 if z_type=='z1':
     ZMIN = 0.2
     ZMAX = 0.5
+elif z_type=='z3':
+    ZMIN = 0.5
+    ZMAX = 0.75
 else:
-    raise Exception()
+    raise Exception("Wrong z-type")
+
+# Load survey dimensions
+if z_type=='z1' and patch=='ngc':
+    boxsize_grid = np.array([1350,2450,1400])
+    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
+elif z_type=='z1' and patch=='sgc':
+    boxsize_grid = np.array([1000,1900,1100])
+    grid_3d = np.asarray(np.asarray([190.,360.,210.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='ngc':
+    boxsize_grid = np.array([1800,3400,1900])
+    grid_3d = np.asarray(np.asarray([340.,650.,360.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='sgc':
+    boxsize_grid = np.array([1000,2600,1500])
+    grid_3d = np.asarray(np.asarray([190.,500.,280.])/grid_factor,dtype=int)
+else:
+    raise Exception("Wrong z-type / patch")
 
 init = time.time()
 
@@ -71,8 +94,8 @@ else:
     raise Exception("Wrong sim type!")
 
 # Load data to get co-ordinate grids and random properties
-data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,fkp_weights=False)
-randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,fkp_weights=False)
+data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
 diff,density = grid_data(data, randoms, boxsize_grid, grid_3d,return_randoms=False)
 k_grids, r_grids = load_coord_grids(boxsize_grid,grid_3d,density)
 

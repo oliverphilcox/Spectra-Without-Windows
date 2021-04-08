@@ -14,19 +14,17 @@ sys.path.append('../src')
 from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
 
 # Read command line arguments
-if len(sys.argv)!=4:
-    raise Exception("Need to specify sim number, weight-type and grid factor!")
+if len(sys.argv)!=6:
+    raise Exception("Need to specify random iteration, weight-type and grid factor!")
 else:
     # If sim no = -1 the true BOSS data is used
     sim_no = int(sys.argv[1])
-    wtype = int(sys.argv[2]) # 0 for FKP, 1 for ML
-    grid_factor = float(sys.argv[3])
+    patch = str(sys.argv[2]) # ngc or sgc
+    z_type = str(sys.argv[3]) # z1 or z3
+    wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
+    grid_factor = float(sys.argv[5])
 
 ########################### INPUT PARAMETERS ###########################
-
-## Simulation parameters
-patch = 'ngc'
-z_type = 'z1'
 
 ## Number of Monte Carlo simulations used
 N_bias = 50
@@ -54,15 +52,28 @@ if z_type=='z1':
     ZMIN = 0.2
     ZMAX = 0.5
     z = 0.38
+elif z_type=='z3':
+    ZMIN = 0.5
+    ZMAX  = 0.75
+    z = 0.61
 else:
-    raise Exception()
+    raise Exception("Wrong z-type")
 
-# box dimensions (scaled from BOSS release)
-if patch=='ngc' and z_type=='z1':
+# Load survey dimensions
+if z_type=='z1' and patch=='ngc':
     boxsize_grid = np.array([1350,2450,1400])
     grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
+elif z_type=='z1' and patch=='sgc':
+    boxsize_grid = np.array([1000,1900,1100])
+    grid_3d = np.asarray(np.asarray([190.,360.,210.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='ngc':
+    boxsize_grid = np.array([1800,3400,1900])
+    grid_3d = np.asarray(np.asarray([340.,650.,360.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='sgc':
+    boxsize_grid = np.array([1000,2600,1500])
+    grid_3d = np.asarray(np.asarray([190.,500.,280.])/grid_factor,dtype=int)
 else:
-    raise Exception()
+    raise Exception("Wrong z-type / patch")
 
 # Create directories
 if not os.path.exists(outdir): os.makedirs(outdir)
@@ -107,8 +118,8 @@ else:
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 
 # Load data and paint to grid
-data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,fkp_weights=False);
-randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,fkp_weights=False);
+data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
+randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
 diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
 
 # Compute alpha rescaling and shot-noise factor

@@ -32,5 +32,5 @@ We additionally use a number of the BOSS data products available on the BOSS [SA
 ### Publications
 Codes and data from this repository are used in the following publications:
 
-- Philcox (2020, [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
+- Philcox (2020, [PRD](https://journals.aps.org/prd/accepted/e4077QadMc217b2145bd94571d2c34c46f6e463d7), [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
 - Philcox (2021, in prep.): Description of the unwindowed bispectrum estimators.

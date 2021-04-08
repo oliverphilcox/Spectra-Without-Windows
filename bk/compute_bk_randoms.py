@@ -12,19 +12,16 @@ sys.path.append('../src')
 from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
 
 # Read command line arguments
-if len(sys.argv)!=4:
+if len(sys.argv)!=6:
     raise Exception("Need to specify random iteration, weight-type and grid factor!")
 else:
-    # If sim no = -1 the true BOSS data is used
     rand_it = int(sys.argv[1])
-    wtype = int(sys.argv[2]) # 0 for FKP, 1 for ML
-    grid_factor = float(sys.argv[3])
+    patch = str(sys.argv[2]) # ngc or sgc
+    z_type = str(sys.argv[3]) # z1 or z3
+    wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
+    grid_factor = float(sys.argv[5])
 
 ############################### INPUT PARAMETERS ###############################
-
-## Simulation parameters
-patch = 'ngc'
-z_type = 'z1'
 
 ## Number of Monte Carlo simulations used
 N_bias = 50
@@ -48,13 +45,6 @@ pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30
 
 #### In principle, nothing below here needs to be altered for BOSS
 
-# box dimensions (scaled from BOSS release)
-if patch=='ngc' and z_type=='z1':
-    boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
-else:
-    raise Exception()
-
 if rand_it>N_bias: raise Exception("Simulation number cannot be greater than number of bias sims!")
 
 # Redshifts
@@ -62,8 +52,28 @@ if z_type=='z1':
     ZMIN = 0.2
     ZMAX = 0.5
     z = 0.38
+elif z_type=='z3':
+    ZMIN = 0.5
+    ZMAX  = 0.75
+    z = 0.61
 else:
-    raise Exception()
+    raise Exception("Wrong z-type")
+
+# Load survey dimensions
+if z_type=='z1' and patch=='ngc':
+    boxsize_grid = np.array([1350,2450,1400])
+    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
+elif z_type=='z1' and patch=='sgc':
+    boxsize_grid = np.array([1000,1900,1100])
+    grid_3d = np.asarray(np.asarray([190.,360.,210.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='ngc':
+    boxsize_grid = np.array([1800,3400,1900])
+    grid_3d = np.asarray(np.asarray([340.,650.,360.])/grid_factor,dtype=int)
+elif z_type=='z3' and patch=='sgc':
+    boxsize_grid = np.array([1000,2600,1500])
+    grid_3d = np.asarray(np.asarray([190.,500.,280.])/grid_factor,dtype=int)
+else:
+    raise Exception("Wrong z-type / patch")
 
 # Create directories
 if not os.path.exists(mcdir): os.makedirs(mcdir)
@@ -139,8 +149,8 @@ print("alpha = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
 
 # Compute alpha for nbar rescaling
 print("Computing Patchy alpha factor from weights")
-data_w = load_data(1,ZMIN,ZMAX,cosmo_coord,weight_only=True).sum().compute()
-rand_w = load_randoms(1,ZMIN,ZMAX,cosmo_coord,weight_only=True).sum().compute()
+data_w = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,weight_only=True).sum().compute()
+rand_w = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,weight_only=True).sum().compute()
 alpha_ran0 = data_w/rand_w
 print("alpha_ran = %.3f"%alpha_ran0)
 del data_w, rand_w
@@ -249,16 +259,6 @@ for a in range(n_k):
     tg_a = all_tilde_g_a[a]
     g_a = all_g_a[a]
 
-    # Add flags to check if this has already been computed
-    flagfile = lockdir+'flag_bias_map_unif%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-    if os.path.exists(flagfile):
-        flags = list(np.load(flagfile))
-        if a in flags:
-            print("Already computed!")
-            continue;
-    else:
-        flags = []
-
     for b in range(a,n_k):
         tmp_av = 0.5*(tg_a*all_g_a[b]+g_a*all_tilde_g_a[b])
 
@@ -288,10 +288,6 @@ for a in range(n_k):
                 np.savez(bias_ab_file_name(a,b),dat=bias_ab+tmp_av/N_bias,ct=ct_ab+1,its=its+[rand_it])
                 os.remove(lockfile)
                 break;
-
-    # Save a flag to avoid recomputation
-    flags.append(a)
-    np.save(flagfile,flags)
 
 ##################### COMPUTE unsymmetrized phi_alpha ##########################
 
@@ -345,16 +341,6 @@ def analyze_phi(index):
     ### This adds to a global average map
     a,b,c = bins_index[index]
 
-    # Add some flags to check what's already been computed
-    flagfile = lockdir+'flag_phi_unif%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-    if os.path.exists(flagfile):
-        flags = list(np.load(flagfile))
-        if index in flags:
-            print("Already computed!")
-            return;
-    else:
-        flags = []
-
     ### 1a. Load tilde-phi_alpha
     # Note that we only stored phi_{uvw} for u<=v by symmetry
     tilde_phi_alpha = np.load(tmp_tilde_phi_alpha_file_name(min([a,b]),max([a,b]),c))
@@ -379,7 +365,9 @@ def analyze_phi(index):
                 this_sum_tilde_phi_alpha = infile['dat']
                 ct_alpha1 = infile['ct']
                 its = list(infile['its'])
-                if rand_it in its: break; # already computed this simulation
+                if rand_it in its:
+                    os.remove(lockfile)
+                    break; # already computed this simulation
             else:
                 this_sum_tilde_phi_alpha = 0.
                 ct_alpha1 = 0
@@ -419,7 +407,9 @@ def analyze_phi(index):
                 this_sum_Cinv_phi_alpha = infile['dat']
                 ct_alpha2 = infile['ct']
                 its = list(infile['its'])
-                if rand_it in its: break; # already computed this simulation!
+                if rand_it in its:
+                    os.remove(lockfile)
+                    break; # already computed this simulation!
             else:
                 this_sum_Cinv_phi_alpha = 0.
                 ct_alpha2 = 0
@@ -428,10 +418,6 @@ def analyze_phi(index):
             os.remove(lockfile)
             break;
     del Cinv_phi_alpha
-
-    # Save a flag to avoid re-computation
-    flags.append(index)
-    np.save(flagfile,flags)
 
 for i in range(n_bins):
     print("On index %d of %d"%(i+1,n_bins))
