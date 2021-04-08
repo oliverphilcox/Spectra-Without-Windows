@@ -20,7 +20,7 @@ else:
     # If sim no = -1 the true BOSS data is used
     sim_no = int(sys.argv[1])
     wtype = int(sys.argv[2]) # 0 for FKP, 1 for ML
-    grid_factor = int(sys.argv[3])
+    grid_factor = float(sys.argv[3])
 
 ########################### INPUT PARAMETERS ###########################
 
@@ -60,7 +60,7 @@ else:
 # box dimensions (scaled from BOSS release)
 if patch=='ngc' and z_type=='z1':
     boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
+    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
 else:
     raise Exception()
 
@@ -81,7 +81,7 @@ else:
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
 print("Simulation: %d"%sim_no)
-print("Grid-Factor: %d"%grid_factor)
+print("Grid-Factor: %.1f"%grid_factor)
 print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
@@ -99,9 +99,9 @@ init = time.time()
 ########################### LOAD DATA ###########################
 
 if sim_no!=-1:
-    print("\n## Loading %s %s simulation %d with %s weights and grid-factor %d"%(patch,z_type,sim_no,weight_str,grid_factor))
+    print("\n## Loading %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
 else:
-    print("\n## Loading %s %s BOSS data with %s weights and grid-factor %d"%(patch,z_type,weight_str,grid_factor))
+    print("\n## Loading %s %s BOSS data with %s weights and grid-factor %.1f"%(patch,z_type,weight_str,grid_factor))
 
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
@@ -221,7 +221,7 @@ def bias_term(a,b):
     a0 = min([a,b])
     a1 = max([a,b])
 
-    filename = mcdir+'patchy%d_%s_%s_%s_g%d_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a0,a1,k_min,k_max,dk)
+    filename = mcdir+'patchy%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a0,a1,k_min,k_max,dk)
     infile = np.load(filename)
     if infile['ct']!=N_bias: raise Exception("Wrong number of bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
 
@@ -247,7 +247,7 @@ q_alpha = np.asarray(q_alpha)/Delta_abc
 
 ########################### COMPUTE Fisher matrix ###########################
 
-full_fish_file_name = outdir+'patchy_mean%d_%s_%s_%s_g%d_full-fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+full_fish_file_name = outdir+'patchy_mean%d_%s_%s_%s_g%.1f_full-fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 if not os.path.exists(full_fish_file_name):
 
@@ -255,8 +255,8 @@ if not os.path.exists(full_fish_file_name):
 
     print("\n### Computing mean Fisher matrix contribution")
 
-    sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%d_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-    sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%d_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+    sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+    sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
 
     def load_row_mean(alpha):
         ### Load a single row of the mean Fisher matrix, < phi_alpha > C^-1 < phi_beta >/12
@@ -264,13 +264,19 @@ if not os.path.exists(full_fish_file_name):
 
         this_row = np.zeros(n_bins)
         infile = np.load(sum_tilde_phi_alpha_file_name(*bins_index[alpha]))
-        if infile['ct']!=N_bias: raise Exception("Wrong number of bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
+        if infile['ct']!=N_bias:
+            print(np.sort(infile['its']))
+            print(alpha)
+            raise Exception("Wrong number of tilde-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
         mean_tilde_phi_alpha = infile['dat']
         infile.close()
 
         for beta in range(alpha,n_bins): # compute diagonal by symmetry
             infile = np.load(sum_Cinv_phi_alpha_file_name(*bins_index[beta]))
-            if infile['ct']!=N_bias: raise Exception("Wrong number of bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
+            if infile['ct']!=N_bias:
+                print(np.sort(infile['its']))
+                print(beta)
+                raise Exception("Wrong number of Cinv-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
             mean_Cinv_phi_beta = infile['dat']
             infile.close()
             this_row[beta] = np.sum(mean_tilde_phi_alpha*mean_Cinv_phi_beta)/12.
@@ -299,7 +305,7 @@ if not os.path.exists(full_fish_file_name):
 
     ### Define file names
     def fish_file_name(bias_sim):
-        return mcdir+'patchy_unif%d_%s_%s_%s_g%d_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+        return mcdir+'patchy_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
     # Iterate over simulations and normalize correctly
     full_fisher = np.zeros((n_bins,n_bins))
@@ -322,9 +328,9 @@ p_alpha = np.matmul(np.linalg.inv(full_fisher),q_alpha)
 ########################### SAVE & EXIT ###########################
 
 if sim_no!=-1:
-    p_alpha_file_name = outdir + 'patchy%d_unif_%s_%s_%s_g%d_p_alpha_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    p_alpha_file_name = outdir + 'patchy%d_unif_%s_%s_%s_g%.1f_p_alpha_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 else:
-    p_alpha_file_name = outdir + 'boss_unif_%s_%s_%s_g%d_p_alpha_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    p_alpha_file_name = outdir + 'boss_unif_%s_%s_%s_g%.1f_p_alpha_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 np.save(p_alpha_file_name,p_alpha)
 

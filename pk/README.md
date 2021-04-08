@@ -6,7 +6,7 @@ To compute power spectra, there are two steps:
 1. Run the ```compute_pk_randoms.py``` script to generate and analyze uniformly distributed particles. These are used to compute the Fisher matrix. This script should be run with 50-100 choices of input parameter ```rand_it```.
 2. Run the ```compute_pk_data.py``` script to analyze a specific Patchy simulation or BOSS data. Step (1) must be computed before this is run.
 
-The output power spectrum will be saved as ```pk_patchy{SIM_NO}....txt``` or ```pk_boss....txt``` in the specified output directory.
+The output power spectrum will be saved as ```pk_patchy{SIM_NO}....txt``` or ```pk_boss....txt``` in the specified output directory. Note that the background density map ```n(r)``` must be generated before these scripts are run; this can be done using the [generate_mask.py](../generate_mask.py) script.
 
 ### Input Parameters
 On the command line, the following parameters can be specified:

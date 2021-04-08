@@ -18,7 +18,7 @@ else:
     # If sim no = -1 the true BOSS data is used
     rand_it = int(sys.argv[1])
     wtype = int(sys.argv[2]) # 0 for FKP, 1 for ML
-    grid_factor = int(sys.argv[3])
+    grid_factor = float(sys.argv[3])
 
 ############################### INPUT PARAMETERS ###############################
 
@@ -39,7 +39,7 @@ h_fid = 0.676
 OmegaM_fid = 0.31
 
 ## Directories
-tmpdir = '/scratch/phi_alpha%d_%d/'%(rand_it,grid_factor) # to hold temporary output (should be large)
+tmpdir = '/scratch/phi_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
 mcdir = '/projects/QUIJOTE/Oliver/bk_opt/summed_phi_alpha/' # to hold intermediate sums (should be large)
 lockdir = '/projects/QUIJOTE/Oliver/bk_opt/lockdir/' # to hold flags used to avoid overwriting
 
@@ -51,7 +51,7 @@ pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30
 # box dimensions (scaled from BOSS release)
 if patch=='ngc' and z_type=='z1':
     boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
+    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
 else:
     raise Exception()
 
@@ -83,7 +83,7 @@ else:
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
 print("Random iteration: %d"%rand_it)
-print("Grid-Factor: %d"%grid_factor)
+print("Grid-Factor: %.1f"%grid_factor)
 print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
@@ -101,12 +101,12 @@ init = time.time()
 ################################### LOAD DATA ##################################
 
 ### First check if we actually need to compute this simulation
-fish_file_name = mcdir+'patchy_unif%d_%s_%s_%s_g%d_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = mcdir+'patchy_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 if os.path.exists(fish_file_name):
     print("Simulation already completed!")
     sys.exit();
 
-print("\n## Loading random iteration %d for %s %s with %s weights and grid-factor %d"%(rand_it,patch,z_type,weight_str,grid_factor))
+print("\n## Loading random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
 
 # Clean any crud from a previous run
 import shutil
@@ -241,16 +241,24 @@ del ft_nCinv_a, ft_nAinv_a
 
 print("\n## Computing < tilde-g-a g-b > contribution assuming %s weightings"%weight_str)
 
-bias_ab_file_name = lambda a,b: mcdir+'patchy%d_%s_%s_%s_g%d_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,k_min,k_max,dk)
+bias_ab_file_name = lambda a,b: mcdir+'patchy%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,k_min,k_max,dk)
 
 # Iterate over bins
 for a in range(n_k):
     print("On primary k-bin %d of %d"%(a+1,n_k))
     tg_a = all_tilde_g_a[a]
     g_a = all_g_a[a]
-    flagfile = lockdir+'flag_bias_map%d_unif%d_%s_%s_%s_g%d_k%.3f_%.3f_%.3f.npy'%(a,rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+
+    # Add flags to check if this has already been computed
+    flagfile = lockdir+'flag_bias_map_unif%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
     if os.path.exists(flagfile):
-        print("Already computed!")
+        flags = list(np.load(flagfile))
+        if a in flags:
+            print("Already computed!")
+            continue;
+    else:
+        flags = []
+
     for b in range(a,n_k):
         tmp_av = 0.5*(tg_a*all_g_a[b]+g_a*all_tilde_g_a[b])
 
@@ -282,14 +290,15 @@ for a in range(n_k):
                 break;
 
     # Save a flag to avoid recomputation
-    np.save(flagfile,0)
+    flags.append(a)
+    np.save(flagfile,flags)
 
 ##################### COMPUTE unsymmetrized phi_alpha ##########################
 
 print("\n## Computing unsymmetrized phi-alpha maps assuming %s weightings"%weight_str)
 
-tmp_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_patchy_unif%d_%s_%s_%s_g%d_phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-tmp_tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_patchy_unif%d_%s_%s_%s_g%d_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+tmp_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_patchy_unif%d_%s_%s_%s_g%.1f_phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+tmp_tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_patchy_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
 
 def compute_unsymmetrized_phi(a):
     #### Compute the unsymmetrized phi maps for all betas given some alpha
@@ -324,10 +333,10 @@ del all_g_a, all_tilde_g_a
 
 print("\n## Computing symmetrized phi-alpha maps and C^-1 phi_alpha assuming %s weightings"%weight_str)
 
-sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%d_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%d_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-Cinv_phi_alpha_file_name = lambda a,b,c: tmpdir+'patchy_%s_%s_%s_g%d_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'patchy_%s_%s_%s_g%d_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+Cinv_phi_alpha_file_name = lambda a,b,c: tmpdir+'patchy_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'patchy_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
 
 def analyze_phi(index):
 
@@ -336,9 +345,15 @@ def analyze_phi(index):
     ### This adds to a global average map
     a,b,c = bins_index[index]
 
-    flagfile = lockdir+'flag_phi%d_unif%d_%s_%s_%s_g%d_k%.3f_%.3f_%.3f.npy'%(index,rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    # Add some flags to check what's already been computed
+    flagfile = lockdir+'flag_phi_unif%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
     if os.path.exists(flagfile):
-        print("Already computed!")
+        flags = list(np.load(flagfile))
+        if index in flags:
+            print("Already computed!")
+            return;
+    else:
+        flags = []
 
     ### 1a. Load tilde-phi_alpha
     # Note that we only stored phi_{uvw} for u<=v by symmetry
@@ -415,7 +430,8 @@ def analyze_phi(index):
     del Cinv_phi_alpha
 
     # Save a flag to avoid re-computation
-    np.save(flagfile,0)
+    flags.append(index)
+    np.save(flagfile,flags)
 
 for i in range(n_bins):
     print("On index %d of %d"%(i+1,n_bins))

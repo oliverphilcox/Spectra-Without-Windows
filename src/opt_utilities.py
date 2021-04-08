@@ -97,10 +97,15 @@ def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran):
     This has no window effects since it does not involve particle samples.
     It is normalized by the alpha factor = Sum (data weights) / Sum (random weights)."""
     if sim_no==-1:
-        file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        if type(grid_factor)==int:
+            file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        else:
+            file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     else:
-        file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-
+        if type(grid_factor)==int:
+            file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+        else:
+            file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     if not os.path.exists(file_name):
         raise Exception("n_bar file '%s' has not been computed!"%file_name)
 

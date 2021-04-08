@@ -21,7 +21,7 @@ else:
     # If sim no = -1 the true BOSS data is used
     sim_no = int(sys.argv[1])
     wtype = int(sys.argv[2]) # 0 for FKP, 1 for ML
-    grid_factor = int(sys.argv[3])
+    grid_factor = float(sys.argv[3])
 
 ############################### INPUT PARAMETERS ###############################
 
@@ -50,7 +50,7 @@ pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30
 # box dimensions (scaled from BOSS release)
 if patch=='ngc' and z_type=='z1':
     boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray([252,460,260],dtype=int)/grid_factor
+    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
 else:
     raise Exception()
 
@@ -77,7 +77,7 @@ else:
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
 print("Random iteration: %d"%rand_it)
-print("Grid-Factor: %d"%grid_factor)
+print("Grid-Factor: %.1f"%grid_factor)
 print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
@@ -94,9 +94,9 @@ init = time.time()
 ################################## LOAD DATA ###################################
 
 if sim_no!=-1:
-    print("\n## Analyzing %s %s simulation %d with %s weights and grid-factor %d"%(patch,z_type,sim_no,weight_str,grid_factor))
+    print("\n## Analyzing %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
 else:
-    print("\n## Analyzing %s %s BOSS data with %s weights and grid-factor %d"%(patch,z_type,weight_str,grid_factor))
+    print("\n## Analyzing %s %s BOSS data with %s weights and grid-factor %.1f"%(patch,z_type,weight_str,grid_factor))
 
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
@@ -171,14 +171,14 @@ for i in range(len(C_a_Cinv_diff)):
 ############################## LOAD FISHER MATRIX ##############################
 
 ### Define file names
-bias_file_name = outdir+'patchy%d_%s_%s_%s_g%d_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-fish_file_name = outdir+'patchy%d_%s_%s_%s_g%d_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+bias_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 if sim_no!=-1:
-    pk_file_name = out_dir + 'pk_patchy%d_%s_%s_%s_g%d_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    pk_file_name = out_dir + 'pk_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 else:
-    pk_file_name = out_dir + 'pk_boss_%s_%s_%s_g%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-combined_bias_file_name = out_dir + 'bias_patchy%d_%s_%s_%s_g%d_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-combined_fish_file_name = out_dir + 'fisher_patchy%d_%s_%s_%s_g%d_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    pk_file_name = out_dir + 'pk_boss_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+combined_bias_file_name = out_dir + 'bias_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+combined_fish_file_name = out_dir + 'fisher_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 ## First load in Fisher matrix and bias term
 try:
@@ -215,9 +215,9 @@ p_alpha = np.matmul(np.linalg.inv(fish),q_alpha-bias)
 
 ## Save output
 if sim_no==-1:
-    file_name = outdir+'boss_%s_%s_%s_g%d_pk_q_a_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    file_name = outdir+'boss_%s_%s_%s_g%.1f_pk_q_a_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 else:
-    file_name = outdir+'patchy%d_%s_%s_%s_g%d_pk_q_a_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q_a_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 np.save(file_name,q_a)
 
 with open(pk_file_name,"w+") as output:
