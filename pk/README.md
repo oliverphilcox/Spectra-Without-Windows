@@ -18,6 +18,7 @@ On the command line, the following parameters can be specified:
 Within the code we can specify the following additional parameters:
 - ```patch```: Which region of BOSS to use, either ```ngc``` or ```sgc```.
 - ```z_type```: Which redshift region, either ```z1``` or ```z3```.
+- `` `N_bias```: Number of Monte Carlo simulations to compute bias and Fisher matrices.
 - ```k_min```, ```k_max```, ```dk```: Desired (linear) k-binning strategy. 
 - ```l_max```: Maximum (even) multipole to compute.
 - ```h_fid```, ```OmegaM_fid```: Fiducial parameters to use when converting redshifts and angles into Cartesian co-ordinates.
