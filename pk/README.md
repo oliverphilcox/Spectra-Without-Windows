@@ -1,4 +1,4 @@
-# Codes and data for the measurement of windowless BOSS power spectra. 
+# Windowless BOSS Power Spectra
 
 ### Overview
 
