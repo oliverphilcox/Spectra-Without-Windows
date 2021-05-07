@@ -18,9 +18,9 @@ To run the analysis code one requires:
 - python (2 or 3)
 - numpy
 - scipy
-- sympy (for generating spherical harmonics)
-- pyfftw (for FFTs)
-- nbodykit (for reading in data)
+- [sympy](https://www.sympy.org/en/index.html) (for generating spherical harmonics)
+- [pyfftw](https://github.com/pyFFTW/pyFFTW) (for FFTs)
+- [nbodykit](https://nbodykit.readthedocs.io/en/latest/) (for reading in data)
 - [mangle](https://github.com/mollyswanson/manglepy) (for reading survey mask files)
 
 We additionally use a number of the BOSS data products available on the BOSS [SAS](https://data.sdss.org/sas/dr12/boss/lss/). Once downloaded, the locations of these files should be specified in [this file](src/opt_utilities.py).

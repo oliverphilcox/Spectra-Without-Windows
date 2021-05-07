@@ -12,6 +12,7 @@
 # - grid_factor: Factor by which to reduce the pixel size. The Nyquist frequency is proportional to the inverse of this.
 #
 # Within the code we can also change the output directory, fiducial cosmology and data cuts. Note that the MANGLE mask for BOSS must be downloaded and specified.
+# Note that the masks are generated on a high-resolution grid then interpolated, to avoid loss of accuracy.
 
 ################################# LOAD MODULES #################################
 # If sim no = -1 the true BOSS data is used
@@ -31,7 +32,7 @@ else:
     sim_type = int(sys.argv[1]) # 0 = BOSS, 1 = Patchy
     patch = str(sys.argv[2]) # ngc or sgc
     z_type = str(sys.argv[3]) # z1 or z3
-    grid_factor = float(sys.argv[4])
+    grid_factor = int(sys.argv[4])
 
 ############################# INPUT PARAMETERS #################################
 
@@ -67,16 +68,16 @@ else:
 # Load survey dimensions
 if z_type=='z1' and patch=='ngc':
     boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
+    grid_3d = np.asarray([252.,460.,260.],dtype=int)
 elif z_type=='z1' and patch=='sgc':
     boxsize_grid = np.array([1000,1900,1100])
-    grid_3d = np.asarray(np.asarray([190.,360.,210.])/grid_factor,dtype=int)
+    grid_3d = np.asarray([190.,360.,210.],dtype=int)
 elif z_type=='z3' and patch=='ngc':
     boxsize_grid = np.array([1800,3400,1900])
-    grid_3d = np.asarray(np.asarray([340.,650.,360.])/grid_factor,dtype=int)
+    grid_3d = np.asarray([340.,650.,360.],dtype=int)
 elif z_type=='z3' and patch=='sgc':
     boxsize_grid = np.array([1000,2600,1500])
-    grid_3d = np.asarray(np.asarray([190.,500.,280.])/grid_factor,dtype=int)
+    grid_3d = np.asarray([190.,500.,280.],dtype=int)
 else:
     raise Exception("Wrong z-type / patch")
 
@@ -145,19 +146,21 @@ nbar_mask = nbar_z_grid*angular_weights
 
 # Normalize mask to random particle density
 v_cell = 1.*grid_3d.prod()/(1.*boxsize_grid.prod())
-rescale = np.sum(randoms['WEIGHT']).compute()*v_cell/np.sum(nbar_mask)
-nbar_mask = nbar_mask*rescale
-#nbar_z = nbar_z_grid*rescale
+nbar_mask *= np.sum(randoms['WEIGHT']).compute()*v_cell/np.sum(nbar_mask)
+
+# Now rebin into coarse pixels
+print("## Rebinning")
+tmp1 = np.sum([nbar_mask[i::grid_factor,:,:] for i in range(grid_factor)],axis=0)
+tmp2 = np.sum([tmp1[:,j::grid_factor,:] for j in range(grid_factor)],axis=0)
+nbar_out = np.sum([tmp2[:,:,k::grid_factor] for k in range(grid_factor)],axis=0)/grid_factor**3.
+
 ################################# SAVE AND EXIT ################################
 
 if sim_type==0:
-    file_name = outdir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-#    file_name_z = outdir+'nz_boss_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+    file_name = outdir+'nbar_hr_boss_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
 elif sim_type==1:
-    file_name = outdir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-#    file_name_z = outdir+'nz_patchy_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-np.save(file_name,nbar_mask)
-#np.save(file_name_z,nbar_z)
+    file_name = outdir+'nbar_hr_patchy_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
+np.save(file_name,nbar_out)
 
 duration = time.time()-init
 print("Output map saved to %s. Exiting after %d seconds (%d minutes)\n\n"%(file_name,duration,duration//60))

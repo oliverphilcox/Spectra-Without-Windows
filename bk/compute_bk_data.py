@@ -1,7 +1,7 @@
 # compute_bk_data.py (Oliver Philcox, 2021)
 ### Compute the component g^a maps for the binned bispectrum of BOSS or Patchy data with FKP or ML weightings
 ### These are then used to compute the full windowless bispectrum estimate
-### Note compute_bk_randoms.py must be run on N_bias sims before this script to compute Fisher matrix contributions
+### Note compute_bk_randoms.py must be run on N_mc sims before this script to compute Fisher matrix contributions
 ### If the sim-no parameter is set to -1, this will compute the bispectrum of BOSS data
 
 # Import modules
@@ -26,21 +26,26 @@ else:
 
 ########################### INPUT PARAMETERS ###########################
 
-## Number of Monte Carlo simulations used
-N_bias = 50
-
 ## k-space binning
-k_min = 0.01
-k_max = 0.15
+k_min = 0.0
+k_max = 0.16
 dk = 0.01
 
 ## Cosmological parameters for co-ordinate conversions
 h_fid = 0.676
 OmegaM_fid = 0.31
 
+## Number of Monte Carlo simulations used
+N_mc = 50
+
+# Whether to forward-model pixellation effects.
+include_pix = False
+# If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
+rand_nbar = False
+
 ## Directories
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt/summed_phi_alpha/' # to hold intermediate sums (should be large)
-outdir = '/projects/QUIJOTE/Oliver/bk_opt/bk_estimates/' # to hold output bispectra
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt2/summed_phi_alpha/' # to hold intermediate sums (should be large)
+outdir = '/projects/QUIJOTE/Oliver/bk_opt2/bk_estimates/' # to hold output bispectra
 
 # Fiducial power spectrum input (for ML weights)
 pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
@@ -91,17 +96,26 @@ else:
 
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
-print("Simulation: %d"%sim_no)
+if sim_no==-1:
+    print("BOSS Data")
+else:
+    print("Simulation: %d"%sim_no)
 print("Grid-Factor: %.1f"%grid_factor)
 print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
+if rand_nbar:
+    print("n-bar: from randoms")
+else:
+    print("n-bar: from mask")
+print("Forward model pixellation: %d"%include_pix)
 print("\nk-min: %.3f"%k_min)
 print("k-max: %.3f"%k_max)
 print("dk: %.3f"%dk)
 print("\nFiducial h = %.3f"%h_fid)
 print("Fiducial Omega_m = %.3f"%OmegaM_fid)
-print("\nMonte Carlo Directory: %s"%mcdir)
+print("\nN_mc: %d"%N_mc)
+print("Monte Carlo Directory: %s"%mcdir)
 print("Output Directory: %s"%outdir)
 print("\n########################################################")
 
@@ -111,9 +125,10 @@ init = time.time()
 
 # Check if simulation has already been analyzed
 if sim_no!=-1:
-    p_alpha_file_name = outdir + 'bk_patchy%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    p_alpha_file_name = outdir + 'bk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
 else:
-    p_alpha_file_name = outdir + 'bk_boss_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+    p_alpha_file_name = outdir + 'bk_boss_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+
 if os.path.exists(p_alpha_file_name):
     print("Simulation has already been computed; exiting!")
     sys.exit()
@@ -129,7 +144,10 @@ cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 # Load data and paint to grid
 data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
 randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
-diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
+if rand_nbar:
+    diff, nbar_rand, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=True,return_norm=False)
+else:
+    diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
 
 # Compute alpha rescaling and shot-noise factor
 alpha_ran = np.sum(data['WEIGHT']).compute()/np.sum(randoms['WEIGHT']).compute()
@@ -138,12 +156,22 @@ print("alpha = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
 del data, randoms
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
-nbar = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+print("Loading nbar from mask")
+nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
 del density
+
+# For weightings, we should use a smooth nbar always.
+nbar_weight = nbar_mask.copy()
+if rand_nbar:
+    nbar = nbar_rand.copy()
+    del nbar_rand
+else:
+    nbar = nbar_mask.copy()
+del nbar_mask
 
 ########################### GRID DEFINITIONS ###########################
 
@@ -202,14 +230,18 @@ print("\n## Computing g-a maps assuming %s weightings"%weight_str)
 
 # Compute H^-1.d
 if wtype==0:
-    Cinv_diff = applyCinv_fkp(diff,nbar,MAS_mat,v_cell,shot_fac)
+    Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50)
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,use_MAS=include_pix)
     del pk_map, Yk_lm, Yr_lm
-del diff
+del diff, nbar_weight
 
-# Now compute FT[nH^-1d], including MAS matrix operations
-ft_nCinv_d = ft(ift(ft(Cinv_diff)/MAS_mat)*nbar)
+# Now compute FT[nH^-1d], optionally including MAS matrix operations
+if include_pix:
+    ft_nCinv_d = ft(ift(ft(Cinv_diff)/MAS_mat)*nbar)
+else:
+    # nb: still need MAS here else Bk scales as MAS^{-3}!
+    ft_nCinv_d = ft(Cinv_diff*nbar)*MAS_mat
 del Cinv_diff, nbar, MAS_mat
 
 ## Compute g^a functions
@@ -237,13 +269,18 @@ for a in range(n_k):
                 Delta_abc[i] = 1.
             i += 1
 
+if sim_no==-1:
+    root = 'boss'
+else:
+    root = 'patchy'
+
 def bias_term(a,b):
     a0 = min([a,b])
     a1 = max([a,b])
 
-    filename = mcdir+'patchy%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a0,a1,k_min,k_max,dk)
+    filename = mcdir+'%s%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(root,N_mc,patch,z_type,weight_str,grid_factor,a0,a1,k_min,k_max,dk)
     infile = np.load(filename)
-    if infile['ct']!=N_bias: raise Exception("Wrong number of bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
+    if infile['ct']!=N_mc: raise Exception("Wrong number of bias simulations computed! (%d of %d)"%(infile['ct'],N_mc))
 
     return infile['dat']
 
@@ -260,23 +297,23 @@ for a in range(n_k):
 
             ## Analyze this bin
             tmp_q = np.sum(g_a*g_b*g_c-g_a*bias_term(b,c)-g_b*bias_term(c,a)-g_c*bias_term(a,b))
-            q_alpha.append(tmp_q)
+            q_alpha.append(np.real_if_close(tmp_q))
 
 # Add symmetry factor
 q_alpha = np.asarray(q_alpha)/Delta_abc
 
 ########################### COMPUTE Fisher matrix ###########################
 
-full_fish_file_name = outdir+'patchy_mean%d_%s_%s_%s_g%.1f_full-fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+full_fish_file_name = outdir+'%s_mean%d_%s_%s_%s_g%.1f_full-fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 if not os.path.exists(full_fish_file_name):
 
     # Compute mean Fisher matrix < tilde-phi > C^-1 < phi >
 
-    print("\n### Computing mean Fisher matrix contribution")
+    print("\n## Computing mean Fisher matrix contribution")
 
-    sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-    sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_bias,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+    sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_%s_unif%d_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(root,N_mc,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+    sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_%s_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(root,N_mc,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
 
     def load_row_mean(alpha):
         ### Load a single row of the mean Fisher matrix, < phi_alpha > C^-1 < phi_beta >/12
@@ -284,22 +321,22 @@ if not os.path.exists(full_fish_file_name):
 
         this_row = np.zeros(n_bins)
         infile = np.load(sum_tilde_phi_alpha_file_name(*bins_index[alpha]))
-        if infile['ct']!=N_bias:
+        if infile['ct']!=N_mc:
             print(np.sort(infile['its']))
             print(alpha)
-            raise Exception("Wrong number of tilde-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
+            raise Exception("Wrong number of tilde-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_mc))
         mean_tilde_phi_alpha = infile['dat']
         infile.close()
 
-        for beta in range(alpha,n_bins): # compute diagonal by symmetry
+        for beta in range(alpha,n_bins): # compute only upper triangle and diagonal by symmetry
             infile = np.load(sum_Cinv_phi_alpha_file_name(*bins_index[beta]))
-            if infile['ct']!=N_bias:
+            if infile['ct']!=N_mc:
                 print(np.sort(infile['its']))
                 print(beta)
-                raise Exception("Wrong number of Cinv-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_bias))
+                raise Exception("Wrong number of Cinv-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_mc))
             mean_Cinv_phi_beta = infile['dat']
             infile.close()
-            this_row[beta] = np.sum(mean_tilde_phi_alpha*mean_Cinv_phi_beta)/12.
+            this_row[beta] = np.real_if_close(np.sum(mean_tilde_phi_alpha*mean_Cinv_phi_beta)/12.)
             del mean_Cinv_phi_beta
         del mean_tilde_phi_alpha
 
@@ -309,7 +346,7 @@ if not os.path.exists(full_fish_file_name):
     mean_fisher = np.zeros((n_bins,n_bins))
     # Iterate over rows
     for i in range(n_bins):
-        print("On index %d of %d"%(i+1,n_bins))
+        if i%5==0: print("On index %d of %d"%(i+1,n_bins))
         mean_fisher[i] = load_row_mean(i)
 
     # Add symmetry factor
@@ -325,17 +362,18 @@ if not os.path.exists(full_fish_file_name):
 
     ### Define file names
     def fish_file_name(bias_sim):
-        return mcdir+'patchy_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(N_bias,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+        return mcdir+'%s_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
     # Iterate over simulations and normalize correctly
     full_fisher = np.zeros((n_bins,n_bins))
-    for i in range(N_bias):
-        full_fisher += np.load(fish_file_name(i))/N_bias
+    for i in range(N_mc):
+        full_fisher += np.load(fish_file_name(i))/N_mc
 
     full_fisher -= mean_fisher
     np.save(full_fish_file_name,full_fisher)
 
 else:
+    print("\n## Loading Fisher matrix from file")
     full_fisher = np.load(full_fish_file_name)
 
 ########################### COMPUTE p_alpha ###########################
@@ -355,12 +393,12 @@ with open(p_alpha_file_name,"w+") as output:
     output.write("\n# Patch: %s"%patch)
     output.write("\n# z-type: %s"%z_type)
     output.write("\n# Weights: %s"%weight_str)
-    output.write("\n# Fiducial Omega_m: %.3f"%Omfid)
-    output.write("\n# Fiducial h: %.3f"%hfid)
+    output.write("\n# Fiducial Omega_m: %.3f"%OmegaM_fid)
+    output.write("\n# Fiducial h: %.3f"%h_fid)
     output.write("\n# Boxsize: [%.1f, %.1f, %.1f]"%(boxsize_grid[0],boxsize_grid[1],boxsize_grid[2]))
     output.write("\n# Grid: [%d, %d, %d]"%(grid_3d[0],grid_3d[1],grid_3d[2]))
-    output.write("\n# k-binning: [%.3f, %.3f, %.3f]"%(k_min,k_cut,dk))
-    output.write("\n# Monte Carlo Simulations: %d"%N_bias)
+    output.write("\n# k-binning: [%.3f, %.3f, %.3f]"%(k_min,k_max,dk))
+    output.write("\n# Monte Carlo Simulations: %d"%N_mc)
     output.write("\n#")
     output.write("\n# Format: k1 | k2 | k3 | B(k1,k2,k3)")
     output.write("\n############################################")
@@ -369,7 +407,7 @@ with open(p_alpha_file_name,"w+") as output:
 
     for i in range(n_bins):
         a,b,c = bins_index[i]
-        output.write('\n%.4f\t%.4t\t%.4t\t%.8e'%(k_av[a],k_av[b],k_av[c],p_alpha[i]))
+        output.write('\n%.4f\t%.4f\t%.4f\t%.8e'%(k_av[a],k_av[b],k_av[c],p_alpha[i]))
 
 duration = time.time()-init
 print("## Saved bispectrum estimates to %s. Exiting after %d seconds (%d minutes)\n"%(p_alpha_file_name,duration,duration//60))

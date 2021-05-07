@@ -1,6 +1,7 @@
-# compute_pk_randoms.py (Oliver Philcox, 2021)
+# compute_pk_boss_randoms.py (Oliver Philcox, 2021)
 ### Compute the power spectrum of BOSS or Patchy data with FKP or ML weightings
 ### This computes the q-bar and F_ab terms from uniformly distributed randoms (independent of the survey geometry)
+### We use the BOSS covariances for this; compute_pk_randoms.py is used for Patchy covariances.
 
 # Import modules
 from nbodykit.lab import *
@@ -40,7 +41,7 @@ include_pix = False
 rand_nbar = False
 
 # Directories
-outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy5/' # to hold output Fisher matrices
+outdir = '/projects/QUIJOTE/Oliver/pk_opt_boss/' # to hold output Fisher matrices
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -79,7 +80,6 @@ else:
 # Create directories
 if not os.path.exists(outdir): os.makedirs(outdir)
 
-# Covariance matrix parameters
 if wtype==0:
     weight_str = 'fkp'
     from covariances_pk import applyCinv_fkp
@@ -113,11 +113,11 @@ init = time.time()
 
 ################################# LOAD DATA ####################################
 
-print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
+print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %.1f assuming BOSS geometry"%(rand_it,patch,z_type,weight_str,grid_factor))
 
 # First check that the simulation hasn't already been analyzed
-bias_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-fish_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+bias_file_name = outdir+'boss%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = outdir+'boss%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
     print("Output already exists; exiting!\n")
@@ -137,8 +137,8 @@ shot_fac_unif = 1.
 del data
 
 # Compute alpha for nbar rescaling
-data_true = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-rand_true = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+data_true = load_data(-1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+rand_true = load_randoms(-1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
 alpha_ran = (np.sum(data_true['WEIGHT'])/np.sum(rand_true['WEIGHT'])).compute()
 shot_fac = (np.mean(data_true['WEIGHT']**2.).compute()+alpha_ran*np.mean(rand_true['WEIGHT']**2.).compute())/np.mean(rand_true['WEIGHT']).compute()
 norm = 1./np.asarray(alpha_ran*np.sum(rand_true['NBAR']*rand_true['WEIGHT']*rand_true['WEIGHT_FKP']**2.))
@@ -155,7 +155,7 @@ del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
 print("Loading nbar from mask")
-nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+nbar_mask = load_nbar(-1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, z_only=True)
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
@@ -166,9 +166,7 @@ del density
 MAS_mat = load_MAS(boxsize_grid, grid_3d)
 
 # For weightings, we should use a smooth nbar always.
-
-nbar_weight = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, z_only=True)
-#nbar_weight = nbar_mask.copy()
+nbar_weight = nbar_mask.copy()
 if rand_nbar:
     nbar = nbar_rand.copy()
     del nbar_rand
@@ -183,7 +181,7 @@ v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
 
 rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
 print("Rescale factor: %.4e"%rescale_fac)
-np.save(outdir+'unif%d_g%d_rescale.npy'%(rand_it,grid_factor),rescale_fac)
+np.save(outdir+'unif%d_g%d_rescale_boss.npy'%(rand_it,grid_factor),rescale_fac)
 
 # Compute spherical harmonic fields in real and Fourier-space
 Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)

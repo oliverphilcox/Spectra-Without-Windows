@@ -13,12 +13,12 @@ On the command line, the following parameters can be specified:
 - ```rand_it```: Index of the uniform simulation to be created and analyzed (for ```compute_pk_randoms.py```).
 - ```sim_no```: Patchy simulation number (for ```compute_pk_data.py```). If set to -1, the true BOSS data is analyzed.
 - ```patch```: Which region of BOSS to use, either ```ngc``` or ```sgc```.
-- ```z_type```: Which redshift region, either ```z1``` or ```z3``` .`
+- ```z_type```: Which redshift region, either ```z1``` or ```z3```.
 - ```wtype```: Flag to indicate the type of weights. If set to 0, we use FKP-like weights, else maximum likelihood (ML) weights if set to 1. Note that both weights give unwindowed, pixelation-corrected power spectra.
 -  ```grid_factor```: Factor by which to inflate the pixel size, relative to the original BOSS release.
 
 Within the code we can specify the following additional parameters:
-- ```N_bias```: Number of Monte Carlo simulations to compute bias and Fisher matrices.
+- ```N_mc```: Number of Monte Carlo simulations to compute bias and Fisher matrices.
 - ```k_min```, ```k_max```, ```dk```: Desired (linear) k-binning strategy.
 - ```l_max```: Maximum (even) multipole to compute.
 - ```h_fid```, ```OmegaM_fid```: Fiducial parameters to use when converting redshifts and angles into Cartesian co-ordinates.
