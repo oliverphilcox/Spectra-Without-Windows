@@ -15,7 +15,11 @@ from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_dat
 
 # Read command line arguments
 if len(sys.argv)!=6:
+<<<<<<< HEAD
     raise Exception("Need to specify simulation number, patch, z-type, weight-type and grid factor!")
+=======
+    raise Exception("Need to specify random iteration, weight-type and grid factor!")
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 else:
     # If sim no = -1 the true BOSS data is used
     sim_no = int(sys.argv[1])
@@ -27,7 +31,11 @@ else:
 ########################### INPUT PARAMETERS ###########################
 
 ## k-space binning
+<<<<<<< HEAD
 k_min = 0.00
+=======
+k_min = 0.0
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 k_max = 0.16
 dk = 0.01
 
@@ -41,6 +49,7 @@ N_mc = 50
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
+<<<<<<< HEAD
 rand_nbar = True
 
 use_qbar = True
@@ -50,6 +59,13 @@ if not use_qbar:
 ## Directories
 mcdir = '/projects/QUIJOTE/Oliver/bk_opt_production5a/summed_phi_alpha/' # to hold intermediate sums (should be large)
 outdir = '/projects/QUIJOTE/Oliver/bk_opt_production5a/bk_estimates/' # to hold output bispectra
+=======
+rand_nbar = False
+
+## Directories
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt2/summed_phi_alpha/' # to hold intermediate sums (should be large)
+outdir = '/projects/QUIJOTE/Oliver/bk_opt2/bk_estimates/' # to hold output bispectra
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
@@ -129,6 +145,7 @@ init = time.time()
 ########################### LOAD DATA ###########################
 
 # Check if simulation has already been analyzed
+<<<<<<< HEAD
 if sim_no!=-1:
     p_alpha_file_name = outdir + 'bk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
 else:
@@ -141,6 +158,20 @@ if os.path.exists(p_alpha_file_name):
 if sim_no!=-1:
     print("\n## Loading %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
 else:
+=======
+if sim_no!=-1:
+    p_alpha_file_name = outdir + 'bk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+else:
+    p_alpha_file_name = outdir + 'bk_boss_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+
+if os.path.exists(p_alpha_file_name):
+    print("Simulation has already been computed; exiting!")
+    sys.exit()
+
+if sim_no!=-1:
+    print("\n## Loading %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
+else:
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     print("\n## Loading %s %s BOSS data with %s weights and grid-factor %.1f"%(patch,z_type,weight_str,grid_factor))
 
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
@@ -162,7 +193,11 @@ del data, randoms
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
 print("Loading nbar from mask")
+<<<<<<< HEAD
 nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, z_only=True)
+=======
+nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
@@ -235,9 +270,15 @@ print("\n## Computing g-a maps assuming %s weightings"%weight_str)
 
 # Compute H^-1.d
 if wtype==0:
+<<<<<<< HEAD
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
     Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,include_pix=include_pix)
+=======
+    Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
+else:
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,use_MAS=include_pix)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     del pk_map, Yk_lm, Yr_lm
 del diff, nbar_weight
 
@@ -301,10 +342,14 @@ for a in range(n_k):
             g_c = all_g_a[c]
 
             ## Analyze this bin
+<<<<<<< HEAD
             if use_qbar:
                 tmp_q = np.sum(g_a*g_b*g_c-g_a*bias_term(b,c)-g_b*bias_term(c,a)-g_c*bias_term(a,b))
             else:
                 tmp_q = np.sum(g_a*g_b*g_c)
+=======
+            tmp_q = np.sum(g_a*g_b*g_c-g_a*bias_term(b,c)-g_b*bias_term(c,a)-g_c*bias_term(a,b))
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
             q_alpha.append(np.real_if_close(tmp_q))
 
 # Add symmetry factor
@@ -344,7 +389,11 @@ if not os.path.exists(full_fish_file_name):
                 raise Exception("Wrong number of Cinv-phi bias simulations computed! (%d of %d)"%(infile['ct'],N_mc))
             mean_Cinv_phi_beta = infile['dat']
             infile.close()
+<<<<<<< HEAD
             this_row[beta] = np.real(np.sum(mean_tilde_phi_alpha*mean_Cinv_phi_beta)/12.)
+=======
+            this_row[beta] = np.real_if_close(np.sum(mean_tilde_phi_alpha*mean_Cinv_phi_beta)/12.)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
             del mean_Cinv_phi_beta
         del mean_tilde_phi_alpha
 
@@ -370,11 +419,19 @@ if not os.path.exists(full_fish_file_name):
 
     ### Define file names
     def fish_file_name(bias_sim):
+<<<<<<< HEAD
         return mcdir+'%s_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(root,bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
     # Iterate over simulations and normalize correctly
     full_fisher = np.zeros((n_bins,n_bins))
     for i in range(1,N_mc+1):
+=======
+        return mcdir+'%s_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+
+    # Iterate over simulations and normalize correctly
+    full_fisher = np.zeros((n_bins,n_bins))
+    for i in range(N_mc):
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
         full_fisher += np.load(fish_file_name(i))/N_mc
 
     full_fisher -= mean_fisher

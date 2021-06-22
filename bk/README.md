@@ -2,8 +2,11 @@
 
 **STILL IN PROGRESS**
 
+<<<<<<< HEAD
 ### Overview
 
+=======
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 To compute bispectra, there are two steps:
 1. Run the ```compute_bk_randoms.py``` script to generate and analyze uniformly distributed particles. These are used to compute the Fisher and average q-alpha term matrix. This script should be run with 50-100 choices of input parameter ```rand_it```.
 2. Run the ```compute_bk_data.py``` script to analyze a specific Patchy simulation or BOSS data. Step (1) must be computed before this is run.

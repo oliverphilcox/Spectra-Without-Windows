@@ -38,6 +38,7 @@ h_fid = 0.676
 OmegaM_fid = 0.31
 
 # Number of Monte Carlo sims used
+<<<<<<< HEAD
 N_mc = 50
 
 # Whether to forward-model pixellation effects.
@@ -47,6 +48,17 @@ rand_nbar = True
 
 # Directories
 outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy/' # to hold output Fisher matrices and power spectra
+=======
+N_mc = 100
+
+# Whether to forward-model pixellation effects.
+include_pix = False
+# If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
+rand_nbar = False
+
+# Directories
+outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy5/' # to hold output Fisher matrices and power spectra
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -123,6 +135,7 @@ init = time.time()
 ################################## LOAD DATA ###################################
 
 # Check if simulation has already been analyzed
+<<<<<<< HEAD
 if sim_no!=-1:
     pk_file_name = outdir + 'pk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
 else:
@@ -153,6 +166,38 @@ if not (os.path.exists(combined_bias_file_name) and os.path.exists(combined_fish
 if sim_no!=-1:
     print("\n## Analyzing %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
 else:
+=======
+if sim_no!=-1:
+    pk_file_name = outdir + 'pk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+else:
+    pk_file_name = outdir + 'pk_boss_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+if os.path.exists(pk_file_name):
+    print("Simulation has already been computed; exiting!")
+    sys.exit()
+
+# Check if relevant Fisher / bias simulations exist
+if sim_no==-1:
+    root = 'boss'
+else:
+    root = 'patchy'
+
+bias_file_name = lambda bias_sim: outdir+'%s%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(root,bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = lambda bias_sim: outdir+'%s%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(root,bias_sim,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+combined_bias_file_name = outdir + 'bias_%s%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+combined_fish_file_name = outdir + 'fisher_%s%d_%s_%s_%s_g%.1f_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+
+if not (os.path.exists(combined_bias_file_name) and os.path.exists(combined_fish_file_name)):
+    for i in range(1,N_mc+1):
+        if not os.path.exists(bias_file_name(i)):
+            raise Exception("Bias term %d not found"%i)
+        if not os.path.exists(fish_file_name(i)):
+            raise Exception("Fisher matrix %d not found"%i)
+
+# Start computation
+if sim_no!=-1:
+    print("\n## Analyzing %s %s simulation %d with %s weights and grid-factor %.1f"%(patch,z_type,sim_no,weight_str,grid_factor))
+else:
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     print("\n## Analyzing %s %s BOSS data with %s weights and grid-factor %.1f"%(patch,z_type,weight_str,grid_factor))
 
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
@@ -162,7 +207,10 @@ cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
 randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
 if rand_nbar:
+<<<<<<< HEAD
     print("Loading nbar from random particles")
+=======
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     diff, nbar_rand, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=True,return_norm=False)
 else:
     diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
@@ -176,7 +224,11 @@ del data, randoms
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
 print("Loading nbar from mask")
+<<<<<<< HEAD
 nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+=======
+nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, hr=True)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
@@ -187,7 +239,12 @@ del density
 MAS_mat = load_MAS(boxsize_grid, grid_3d)
 
 # For weightings, we should use a smooth nbar always.
+<<<<<<< HEAD
 nbar_weight = nbar_mask.copy()
+=======
+#nbar_weight = nbar_mask.copy()
+nbar_weight = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, z_only=True)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 if rand_nbar:
     nbar = nbar_rand.copy()
     del nbar_rand
@@ -200,9 +257,16 @@ del nbar_mask
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
 
+<<<<<<< HEAD
 # Compute renormalization factor (not currently used)
 rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
 print("Rescale factor: %.4e"%rescale_fac)
+=======
+# Compute renormalization factor
+rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
+print("Rescale factor: %.4e"%rescale_fac)
+np.save(outdir+'sim%d_g%d_rescale.npy'%(sim_no,grid_factor),rescale_fac)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 # Compute spherical harmonic fields in real and Fourier-space
 Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
@@ -224,14 +288,24 @@ n_k = len(k_filters)
 ## Compute C^-1[d]
 print("\n## Computing C-inverse of data and associated computations assuming %s weightings\n"%weight_str)
 if wtype==0:
+<<<<<<< HEAD
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix) # C^-1.x
 else:
     Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix) # C^-1.x
+=======
+    Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix) # C^-1.x
+else:
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,use_MAS=include_pix) # C^-1.x
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     del pk_map
 del diff, nbar_weight
 
 ## Now compute C_a C^-1 d including MAS effects
+<<<<<<< HEAD
 C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,include_pix=include_pix,data=True)
+=======
+C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,use_MAS=include_pix,data=True)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 del nbar, MAS_mat, Yk_lm, Yr_lm
 
 ## Compute q_alpha

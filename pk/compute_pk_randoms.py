@@ -16,7 +16,11 @@ from covariances_pk import applyC_alpha, applyN
 if len(sys.argv)!=6:
     raise Exception("Need to specify random iteration, patch, z-type, weight-type and grid factor!")
 else:
+<<<<<<< HEAD
     rand_it = int(sys.argv[1]) # which random catalog
+=======
+    rand_it = int(sys.argv[1])
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     patch = str(sys.argv[2]) # ngc or sgc
     z_type = str(sys.argv[3]) # z1 or z3
     wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
@@ -37,10 +41,17 @@ OmegaM_fid = 0.31
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
+<<<<<<< HEAD
 rand_nbar = True
 
 # Directories
 outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy/' # to hold output Fisher matrices
+=======
+rand_nbar = False
+
+# Directories
+outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy5/' # to hold output Fisher matrices
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -97,9 +108,15 @@ print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
 if rand_nbar:
+<<<<<<< HEAD
     print("n-bar: from randoms (Patchy)")
 else:
     print("n-bar: from mask (Patchy)")
+=======
+    print("n-bar: from randoms")
+else:
+    print("n-bar: from mask")
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 print("Forward model pixellation: %d"%include_pix)
 print("\nk-min: %.3f"%k_min)
 print("k-max: %.3f"%k_max)
@@ -126,13 +143,22 @@ if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 
+<<<<<<< HEAD
 # Load a uniform random sample for data
 nbar_unif = 1e-3
+=======
+nbar_unif = 1e-3
+# Load a uniform random sample for data
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 data = UniformCatalog(nbar_unif,boxsize_grid,seed=rand_it)
 print("Created %d uniform randoms"%len(data))
 
 # Assign to a grid
+<<<<<<< HEAD
 diff = grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC')
+=======
+diff = grid_uniforms(data, nbar_unif, boxsize_grid,grid_3d,MAS='TSC')
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 shot_fac_unif = 1.
 del data
 
@@ -146,7 +172,11 @@ print("Data: alpha_ran = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
 
 if rand_nbar:
     print("Loading nbar from random particles")
+<<<<<<< HEAD
     nbar_rand, density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=True,return_norm=False)[1:]
+=======
+    _,nbar_rand, density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=True,return_norm=False)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 else:
     # load density mesh (used to define coordinate arrays)
     density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)[1]
@@ -166,7 +196,13 @@ del density
 MAS_mat = load_MAS(boxsize_grid, grid_3d)
 
 # For weightings, we should use a smooth nbar always.
+<<<<<<< HEAD
 nbar_weight = nbar_mask.copy()
+=======
+
+nbar_weight = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, z_only=True)
+#nbar_weight = nbar_mask.copy()
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 if rand_nbar:
     nbar = nbar_rand.copy()
     del nbar_rand
@@ -179,9 +215,15 @@ del nbar_mask
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
 
+<<<<<<< HEAD
 # Compute renormalization factor (not currently used)
 rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
 print("Rescale factor: %.4e"%rescale_fac)
+=======
+rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
+print("Rescale factor: %.4e"%rescale_fac)
+np.save(outdir+'unif%d_g%d_rescale.npy'%(rand_it,grid_factor),rescale_fac)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 # Compute spherical harmonic fields in real and Fourier-space
 Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
@@ -201,27 +243,47 @@ n_k = len(k_filters)
 ### True inverse covariance
 def applyCinv_unif(input_map):
     """Apply true C^{-1} to the uniform map including MAS effects."""
+<<<<<<< HEAD
     return ift(ft(input_map)*MAS_mat**2)/nbar_unif*v_cell/shot_fac_unif
+=======
+    return ift(ft(input_map)*MAS_mat**2)/nbar_analyt*v_cell/shot_fac_unif
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 ######################### COMPUTE FISHER + BIAS ################################
 
 ## Compute C^-1 a and A^-1 a for random map a
 print("\n## Computing C^-1 of map assuming %s weightings"%weight_str)
 if wtype==0:
+<<<<<<< HEAD
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
     Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
+=======
+    Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix) # C^-1.x
+else:
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,use_MAS=include_pix) # C^-1.x
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 Ainv_diff = applyCinv_unif(diff)
 del diff
 
+<<<<<<< HEAD
 # Compute N A^-1 a
 N_Ainv_a = applyN(Ainv_diff,nbar,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
+=======
+# Compute N A^-1.x
+N_Ainv_a = applyN(Ainv_diff,nbar,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 ### Compute C_a C^-1 a
 print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_str)
+<<<<<<< HEAD
 C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,include_pix=include_pix,data=False)
 C_a_Ainv_diff = applyC_alpha(Ainv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,include_pix=include_pix,data=False)
+=======
+C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,use_MAS=include_pix,data=False)
+C_a_Ainv_diff = applyC_alpha(Ainv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,use_MAS=include_pix,data=False)
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 del Cinv_diff, Ainv_diff, nbar
 
@@ -233,9 +295,15 @@ for alpha in range(n_bins):
 
     if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
     if wtype==0:
+<<<<<<< HEAD
         tmp_map = applyCinv_fkp(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
     else:
         tmp_map = applyCinv(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix) # C^-1.x
+=======
+        tmp_map = applyCinv_fkp(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
+    else:
+        tmp_map = applyCinv(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-4,verb=0,max_it=50,use_MAS=include_pix) # C^-1.x
+>>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
     Cinv_C_a_Cinv_diff.append(tmp_map)
     del tmp_map
