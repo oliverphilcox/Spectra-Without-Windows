@@ -5,7 +5,6 @@
 
 # Import modules
 from nbodykit.lab import *
-<<<<<<< HEAD
 import sys, os, copy, time, pyfftw, shutil, fasteners, numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
@@ -15,17 +14,6 @@ from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_dat
 # Read command line arguments
 if len(sys.argv)!=6:
     raise Exception("Need to specify random iteration, patch, z-type, weight-type and grid factor!")
-=======
-import sys, os, copy, time, pyfftw, shutil, numpy as np
-from scipy.interpolate import interp1d
-# custom definitions
-sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniformms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
-
-# Read command line arguments
-if len(sys.argv)!=6:
-    raise Exception("Need to specify random iteration, weight-type and grid factor!")
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 else:
     rand_it = int(sys.argv[1])
     patch = str(sys.argv[2]) # ngc or sgc
@@ -39,11 +27,7 @@ else:
 N_mc = 50
 
 ## k-space binning
-<<<<<<< HEAD
 k_min = 0.00
-=======
-k_min = 0.0
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 k_max = 0.16
 dk = 0.01
 
@@ -54,20 +38,11 @@ OmegaM_fid = 0.31
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
-<<<<<<< HEAD
 rand_nbar = True
 
 ## Directories
 tmpdir = '/tmp/phi_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
 mcdir = '/projects/QUIJOTE/Oliver/bk_opt_production5a/summed_phi_alpha/' # to hold intermediate sums (should be large)
-=======
-rand_nbar = False
-
-## Directories
-tmpdir = '/scratch/phi_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt2/summed_phi_alpha/' # to hold intermediate sums (should be large)
-lockdir = '/projects/QUIJOTE/Oliver/bk_opt2/lockdir/' # to hold flags used to avoid overwriting
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
@@ -165,29 +140,18 @@ data = UniformCatalog(nbar_unif,boxsize_grid,seed=rand_it)
 print("Created %d uniform randoms"%len(data))
 
 # Assign to a grid
-<<<<<<< HEAD
 print("Assigning to grid")
-=======
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 diff = grid_uniforms(data, nbar_unif, boxsize_grid,grid_3d,MAS='TSC')
 shot_fac_unif = 1.
 del data
 
 # Compute alpha for nbar rescaling
-<<<<<<< HEAD
 print("Loading data")
 data_true = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
 rand_true = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
 alpha_ran = (data_true['WEIGHT'].sum()/rand_true['WEIGHT'].sum()).compute()
 shot_fac = ((data_true['WEIGHT']**2.).mean().compute()+alpha_ran*(rand_true['WEIGHT']**2.).mean().compute())/rand_true['WEIGHT'].mean().compute()
 norm = 1./np.asarray(alpha_ran*(rand_true['NBAR']*rand_true['WEIGHT']*rand_true['WEIGHT_FKP']**2.).mean().compute())
-=======
-data_true = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-rand_true = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-alpha_ran = (np.sum(data_true['WEIGHT'])/np.sum(rand_true['WEIGHT'])).compute()
-shot_fac = (np.mean(data_true['WEIGHT']**2.).compute()+alpha_ran*np.mean(rand_true['WEIGHT']**2.).compute())/np.mean(rand_true['WEIGHT']).compute()
-norm = 1./np.asarray(alpha_ran*np.sum(rand_true['NBAR']*rand_true['WEIGHT']*rand_true['WEIGHT_FKP']**2.))
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 print("Data: alpha_ran = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
 
 if rand_nbar:
@@ -201,11 +165,7 @@ del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
 print("Loading nbar from mask")
-<<<<<<< HEAD
-nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran, z_only=True)
-=======
 nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
@@ -287,15 +247,9 @@ print("\n## Computing g-a maps assuming %s weightings"%weight_str)
 
 # Compute H^-1.a
 if wtype==0:
-<<<<<<< HEAD
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,include_pix=include_pix) # C^-1.x
-=======
-    Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
-else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,use_MAS=include_pix) # C^-1.x
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix) # C^-1.x
 
 Ainv_diff = applyCinv_unif(diff) # A^-1.a
 del diff
@@ -513,11 +467,11 @@ def analyze_phi(index):
 <<<<<<< HEAD
         Cinv_phi_alpha = applyCinv_fkp(phi_alpha,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
     else:
-        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-4,verb=0,max_it=50,include_pix=include_pix)
+        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix)
 =======
         Cinv_phi_alpha = applyCinv_fkp(phi_alpha,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
     else:
-        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-4,verb=0,max_it=50,use_MAS=include_pix)
+        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,use_MAS=include_pix)
 >>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     del phi_alpha
 

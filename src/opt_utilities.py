@@ -119,7 +119,6 @@ def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran,z_only=False,h
     This has no window effects since it does not involve particle samples.
     It is normalized by the alpha factor = Sum (data weights) / Sum (random weights)."""
 
-<<<<<<< HEAD
     if sim_no==-1:
         if type(grid_factor)==int:
             file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
@@ -132,47 +131,6 @@ def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran,z_only=False,h
             file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     if not os.path.exists(file_name):
         raise Exception("n_bar file '%s' has not been computed!"%file_name)
-=======
-    if z_only:
-        if sim_no==-1:
-            if type(grid_factor)==int:
-                file_name = mask_dir+'nz_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-            else:
-                file_name = mask_dir+'nz_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-        else:
-            if type(grid_factor)==int:
-                file_name = mask_dir+'nz_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-            else:
-                file_name = mask_dir+'nz_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-        if not os.path.exists(file_name):
-            raise Exception("n_bar file '%s' has not been computed!"%file_name)
-    elif hr:
-        if sim_no==-1:
-            if type(grid_factor)==int:
-                file_name = mask_dir+'nbar_hr_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-            else:
-                file_name = mask_dir+'nbar_hr_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-        else:
-            if type(grid_factor)==int:
-                file_name = mask_dir+'nbar_hr_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-            else:
-                file_name = mask_dir+'nbar_hr_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-        if not os.path.exists(file_name):
-            raise Exception("n_bar file '%s' has not been computed!"%file_name)
-    else:
-        if sim_no==-1:
-            if type(grid_factor)==int:
-                file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-            else:
-                file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-        else:
-            if type(grid_factor)==int:
-                file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-            else:
-                file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-        if not os.path.exists(file_name):
-            raise Exception("n_bar file '%s' has not been computed!"%file_name)
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
     nbar_map = np.load(file_name)*alpha_ran
     return nbar_map
@@ -193,15 +151,9 @@ def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=Tr
     from nbodykit.algorithms.fftpower import project_to_basis, _find_unique_edges
 
     ### Extract [n_g - n_r]w density field, and normalize
-<<<<<<< HEAD
     alpha_norm = data['WEIGHT'].sum()/randoms['WEIGHT'].sum()
     if return_norm:
         norm = 1./np.asarray(alpha_norm*(randoms['NBAR']*randoms['WEIGHT']*randoms['WEIGHT_FKP']**2.).sum())
-=======
-    alpha_norm = np.sum(data['WEIGHT'])/np.sum(randoms['WEIGHT'])
-    if return_norm:
-        norm = 1./np.asarray(alpha_norm*np.sum(randoms['NBAR']*randoms['WEIGHT']*randoms['WEIGHT_FKP']**2.))
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
     def get_compensation(mesh):
         toret = None
@@ -275,11 +227,7 @@ def grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC'):
 
     return diff
 
-<<<<<<< HEAD
 ########################### COORDINATES AND MAPS ###########################
-=======
-########################### CO-ORDINATES AND MAPS ###########################
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 def compute_spherical_harmonics(lmax,kgrids,rgrids):
     """Compute array of valid spherical harmonic functions.

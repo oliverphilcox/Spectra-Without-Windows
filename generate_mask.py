@@ -4,10 +4,7 @@
 #
 # This is a necessary input to the power spectrum and bispectrum estimators
 # We use the Patchy geometry by default in the analysis (should be similar to BOSS)
-<<<<<<< HEAD
 # Note that this requires the pyfits and manglepy (Molly Swanson) codes to load the window function.
-=======
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 #
 # Inputs:
 # - sim_type: 0 for BOSS geometry, 1 for Patchy geometry
@@ -151,27 +148,14 @@ nbar_mask = nbar_z_grid*angular_weights
 v_cell = 1.*grid_3d.prod()/(1.*boxsize_grid.prod())
 rescale = np.sum(randoms['WEIGHT']).compute()*v_cell/np.sum(nbar_mask)
 nbar_mask = nbar_mask*rescale
-<<<<<<< HEAD
-nbar_z = nbar_z_grid*rescale
-=======
-#nbar_z = nbar_z_grid*rescale
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
+
 ################################# SAVE AND EXIT ################################
 
 if sim_type==0:
     file_name = outdir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-<<<<<<< HEAD
 elif sim_type==1:
     file_name = outdir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
 np.save(file_name,nbar_mask)
-=======
-#    file_name_z = outdir+'nz_boss_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-elif sim_type==1:
-    file_name = outdir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-#    file_name_z = outdir+'nz_patchy_%s_%s_z%.3f_%.3f_g%.1f'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-np.save(file_name,nbar_mask)
-#np.save(file_name_z,nbar_z)
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
 duration = time.time()-init
 print("Output map saved to %s. Exiting after %d seconds (%d minutes)\n\n"%(file_name,duration,duration//60))

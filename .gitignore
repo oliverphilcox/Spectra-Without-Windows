@@ -1,13 +1,6 @@
 slurm/*
 *.pyc
-<<<<<<< HEAD
-pk/test*.py
-bk/test*.py
 notebooks/*
-test*.py
 bk/_*
 src/test*.py
-=======
-notebooks/*
 *test*.py
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
