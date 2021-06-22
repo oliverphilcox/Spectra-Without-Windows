@@ -4,6 +4,7 @@
 #
 # This is a necessary input to the power spectrum and bispectrum estimators
 # We use the Patchy geometry by default in the analysis (should be similar to BOSS)
+# Note that this requires the pyfits and manglepy (Molly Swanson) codes to load the window function.
 #
 # Inputs:
 # - sim_type: 0 for BOSS geometry, 1 for Patchy geometry
@@ -123,7 +124,7 @@ rz = cosmo_coord.comoving_distance(z)
 
 # Convert to volume density i.e. dN = n_V(z)dV
 volz = 4.*np.pi/3.*(rz[1:]**3.-rz[:-1]**3.)
-nbar_z_interp = UnivariateSpline(z_av,nz/volz,s=0.0000003,ext='zeros')
+nbar_z_interp = UnivariateSpline(z_av,nz/volz,s=0.0000001,ext='zeros')
 
 ################################ DEFINE MASK ###################################
 
@@ -145,8 +146,9 @@ nbar_mask = nbar_z_grid*angular_weights
 
 # Normalize mask to random particle density
 v_cell = 1.*grid_3d.prod()/(1.*boxsize_grid.prod())
-nbar_mask *= np.sum(randoms['WEIGHT']).compute()*v_cell/np.sum(nbar_mask)
-
+rescale = np.sum(randoms['WEIGHT']).compute()*v_cell/np.sum(nbar_mask)
+nbar_mask = nbar_mask*rescale
+nbar_z = nbar_z_grid*rescale
 ################################# SAVE AND EXIT ################################
 
 if sim_type==0:

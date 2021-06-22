@@ -1,2 +1,8 @@
 slurm/*
 *.pyc
+pk/test*.py
+bk/test*.py
+notebooks/*
+test*.py
+bk/_*
+src/test*.py

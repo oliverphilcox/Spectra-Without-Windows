@@ -1,6 +1,7 @@
-# compute_pk_randoms.py (Oliver Philcox, 2021)
+# compute_pk_boss_randoms.py (Oliver Philcox, 2021)
 ### Compute the power spectrum of BOSS or Patchy data with FKP or ML weightings
 ### This computes the q-bar and F_ab terms from uniformly distributed randoms (independent of the survey geometry)
+### We use the BOSS covariances for this; compute_pk_randoms.py is used for Patchy covariances.
 
 # Import modules
 from nbodykit.lab import *
@@ -16,7 +17,7 @@ from covariances_pk import applyC_alpha, applyN
 if len(sys.argv)!=6:
     raise Exception("Need to specify random iteration, patch, z-type, weight-type and grid factor!")
 else:
-    rand_it = int(sys.argv[1]) # which random catalog
+    rand_it = int(sys.argv[1])
     patch = str(sys.argv[2]) # ngc or sgc
     z_type = str(sys.argv[3]) # z1 or z3
     wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
@@ -97,9 +98,9 @@ print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
 if rand_nbar:
-    print("n-bar: from randoms (Patchy)")
+    print("n-bar: from randoms (BOSS)")
 else:
-    print("n-bar: from mask (Patchy)")
+    print("n-bar: from mask (BOSS)")
 print("Forward model pixellation: %d"%include_pix)
 print("\nk-min: %.3f"%k_min)
 print("k-max: %.3f"%k_max)
@@ -113,11 +114,11 @@ init = time.time()
 
 ################################# LOAD DATA ####################################
 
-print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
+print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %.1f assuming BOSS geometry"%(rand_it,patch,z_type,weight_str,grid_factor))
 
 # First check that the simulation hasn't already been analyzed
-bias_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-fish_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+bias_file_name = outdir+'boss%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = outdir+'boss%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
 if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
     print("Output already exists; exiting!\n")
@@ -137,8 +138,8 @@ shot_fac_unif = 1.
 del data
 
 # Compute alpha for nbar rescaling
-data_true = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-rand_true = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+data_true = load_data(-1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+rand_true = load_randoms(-1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
 alpha_ran = (np.sum(data_true['WEIGHT'])/np.sum(rand_true['WEIGHT'])).compute()
 shot_fac = (np.mean(data_true['WEIGHT']**2.).compute()+alpha_ran*np.mean(rand_true['WEIGHT']**2.).compute())/np.mean(rand_true['WEIGHT']).compute()
 norm = 1./np.asarray(alpha_ran*np.sum(rand_true['NBAR']*rand_true['WEIGHT']*rand_true['WEIGHT_FKP']**2.))
@@ -155,7 +156,7 @@ del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
 print("Loading nbar from mask")
-nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+nbar_mask = load_nbar(-1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)

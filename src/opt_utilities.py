@@ -9,13 +9,14 @@ from nbodykit import setup_logging, style
 from scipy.interpolate import interp1d
 import sympy as sp
 
-#### Input directories
+#### Input directories (should be user-set)
 boss_data_dir = '/projects/QUIJOTE/Oliver/boss_gal/' # location of galaxy files
 patchyN_data_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/' # location of Patchy ngc mocks
 patchyS_data_dir = '/projects/QUIJOTE/Oliver/patchy_sgc_mocks/' # location of Patchy sgc mocks
 mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/' # location of nbar files, computed by generate_mask.py
 
 ########################### HANDLING DATA ###########################
+
 def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
     """Load in BOSS/Patchy data with specified patch, z cut, and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only=True, we only return weights."""
     if sim_no==-1:
@@ -64,7 +65,7 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,wei
             data['WEIGHT_FKP'] = 1./(1.+P_fkp*data['NBAR'])
     else:
         print("No FKP weights!")
-        data['WEIGHT_FKP'] = np.ones_like(data['NBAR'])
+        data['WEIGHT_FKP'] = np.ones(len(data['NBAR']))
     return data
 
 
@@ -110,13 +111,14 @@ def load_randoms(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,
             randoms['WEIGHT_FKP'] = 1./(1.+P_fkp*randoms['NBAR'])
     else:
         print("No FKP weights!")
-        randoms['WEIGHT_FKP'] = np.ones_like(randoms['NBAR'])
+        randoms['WEIGHT_FKP'] = np.ones(len(randoms['NBAR']))
     return randoms
 
 def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran):
     """Load the smooth n_bar field computed from the angular mask and n(z) function on the grid.
     This has no window effects since it does not involve particle samples.
     It is normalized by the alpha factor = Sum (data weights) / Sum (random weights)."""
+
     if sim_no==-1:
         if type(grid_factor)==int:
             file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%d.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
@@ -149,12 +151,9 @@ def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=Tr
     from nbodykit.algorithms.fftpower import project_to_basis, _find_unique_edges
 
     ### Extract [n_g - n_r]w density field, and normalize
-    alpha_norm = np.sum(data['WEIGHT'])/np.sum(randoms['WEIGHT'])
-    norm = 1./np.asarray(alpha_norm*np.sum(randoms['NBAR']*randoms['WEIGHT']*randoms['WEIGHT_FKP']**2.))
-
-    Sdat = (data['WEIGHT']**2*data['WEIGHT_FKP']**2.).sum()
-    Sran = (randoms['WEIGHT']**2.*randoms['WEIGHT_FKP']**2.).sum()*alpha_norm**2.
-    Pshot = np.asarray(Sdat+Sran)*norm
+    alpha_norm = data['WEIGHT'].sum()/randoms['WEIGHT'].sum()
+    if return_norm:
+        norm = 1./np.asarray(alpha_norm*(randoms['NBAR']*randoms['WEIGHT']*randoms['WEIGHT_FKP']**2.).sum())
 
     def get_compensation(mesh):
         toret = None
@@ -202,7 +201,34 @@ def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=Tr
         else:
             return diff, density
 
-########################### CO-ORDINATES AND MAPS ###########################
+def grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC'):
+    """Given a single unwindonwed catalog, paint to a grid. Output is an overdensity field.
+    Note that the random field is from *discrete* data here. Use load_nbar to get the continuous version!
+    Inputs: data, nuber density (scalar), boxsize, N_grid.
+    """
+    # combine the data and randoms into a single catalog
+    assert MAS=='TSC'
+    mesh = data.to_mesh(Nmesh=grid_3d,BoxSize=boxsize_grid,resampler='tsc')
+
+    from pmesh.pm import ComplexField,RealField
+    from nbodykit.algorithms.fftpower import project_to_basis, _find_unique_edges
+
+    ### SET UP FIELDS AND OUTPUT
+    first = mesh
+    pm = first.pm
+
+    # paint the 1st FKP density field to the mesh (paints: data - alpha*randoms, essentially)
+    density = first.compute(Nmesh=pm.Nmesh)
+
+    # Normalize
+    diff = density.copy().value
+    diff *= len(data)/np.sum(diff)*grid_3d.prod()*1./boxsize_grid.prod()
+    diff -= nbar_unif
+
+    return diff
+
+########################### COORDINATES AND MAPS ###########################
+
 def compute_spherical_harmonics(lmax,kgrids,rgrids):
     """Compute array of valid spherical harmonic functions.
 
@@ -288,14 +314,14 @@ def load_coord_grids(boxsize_grid, grid_3d, density):
     # Fourier-space coordinate grid
     kF = 2.*np.pi/(1.*boxsize_grid)
     middle_3d = np.asarray(grid_3d)/2
-    kx, ky, kz = [np.asarray([kkk-grid_3d[i] if kkk>=middle_3d[i] else kkk for kkk in xrange(grid_3d[i])])*kF[i] for i in range(3)]
+    kx, ky, kz = [np.asarray([kkk-grid_3d[i] if kkk>=middle_3d[i] else kkk for kkk in np.arange(grid_3d[i])])*kF[i] for i in range(3)]
     kNy = kF*grid_3d/2.
     k3y,k3x,k3z = np.meshgrid(ky,kx,kz)
     print("k_Nyquist = %.2f h/Mpc"%kNy.mean())
 
     # the real-space grid
     offset = density.attrs['BoxCenter']+0.5*boxsize_grid/grid_3d
-    x_grid,y_grid,z_grid = [xx.astype('f8').ravel().real + offset[ii].real for ii, xx in enumerate(density.slabs.optx)]
+    x_grid,y_grid,z_grid = [xx.real.astype('f8').ravel() + offset[ii].real for ii, xx in enumerate(density.slabs.optx)]
     r3y,r3x,r3z = np.meshgrid(y_grid,x_grid,z_grid)
     return np.asarray([k3x,k3y,k3z]),np.asarray([r3x,r3y,r3z])
 
@@ -303,7 +329,7 @@ def load_MAS(boxsize_grid, grid_3d):
     """Load the mass-assignment scheme (aka compensation) matrix"""
     kF = 2.*np.pi/(1.*boxsize_grid)
     middle_3d = np.asarray(grid_3d)/2
-    kx, ky, kz = [np.asarray([kkk-grid_3d[i] if kkk>=middle_3d[i] else kkk for kkk in xrange(grid_3d[i])])*kF[i] for i in range(3)]
+    kx, ky, kz = [np.asarray([kkk-grid_3d[i] if kkk>=middle_3d[i] else kkk for kkk in np.arange(grid_3d[i])])*kF[i] for i in range(3)]
     prefact = np.pi/np.asarray(grid_3d,dtype=np.float32)
     kkx = kx/kF[0]
     kky = ky/kF[1]
@@ -362,7 +388,7 @@ def ift(pix, threads=4):
                             direction='FFTW_BACKWARD', threads=threads)
 
     # put input array into delta_r and perform FFTW
-    a_in [:] = pix;  fftw_plan(a_in,a_out);  return a_out.real
+    a_in [:] = pix;  fftw_plan(a_in,a_out);  return a_out
 
 ########################### PLOTTING ###########################
 

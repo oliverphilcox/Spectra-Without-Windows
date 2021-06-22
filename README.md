@@ -3,8 +3,8 @@
 This repository contains details of the window-free analysis of BOSS DR12 data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and Philcox 2021 (in prep.).
 
 # TODO:
-- Add other patches
-- Add compression code?
+- Finish Bk code
+- Add BOSS / Patchy data
 
 ## Outline
 - [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS and 2048 Patchy simulations.
@@ -17,9 +17,10 @@ To run the analysis code one requires:
 - python (2 or 3)
 - numpy
 - scipy
-- sympy (for generating spherical harmonics)
-- pyfftw (for FFTs)
-- nbodykit (for reading in data)
+- [sympy](https://www.sympy.org/en/index.html) (for generating spherical harmonics)
+- [pyfftw](https://github.com/pyFFTW/pyFFTW) (for FFTs)
+- [nbodykit](https://nbodykit.readthedocs.io/en/latest/) (for reading in data)
+- [fasteners](https://pypi.org/project/fasteners/) (for providing file overwrites in bispectrum computation)
 - [mangle](https://github.com/mollyswanson/manglepy) (for reading survey mask files)
 
 We additionally use a number of the BOSS data products available on the BOSS [SAS](https://data.sdss.org/sas/dr12/boss/lss/). Once downloaded, the locations of these files should be specified in [this file](src/opt_utilities.py).
@@ -32,5 +33,5 @@ We additionally use a number of the BOSS data products available on the BOSS [SA
 ### Publications
 Codes and data from this repository are used in the following publications:
 
-- Philcox (2020, [PRD](https://journals.aps.org/prd/accepted/e4077QadMc217b2145bd94571d2c34c46f6e463d7), [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
+- Philcox (2020, [PRD](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.103.103504), [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
 - Philcox (2021, in prep.): Description of the unwindowed bispectrum estimators.
