@@ -5,17 +5,18 @@
 
 # Import modules
 from nbodykit.lab import *
-import sys, os, copy, time, pyfftw, shutil, fasteners, numpy as np
+import sys, os, copy, time, pyfftw, shutil, fasteners
+import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
+from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift
 
 # Read command line arguments
 if len(sys.argv)!=6:
     raise Exception("Need to specify random iteration, patch, z-type, weight-type and grid factor!")
 else:
-    rand_it = int(sys.argv[1])
+    rand_it = int(sys.argv[1]) # random iteration
     patch = str(sys.argv[2]) # ngc or sgc
     z_type = str(sys.argv[3]) # z1 or z3
     wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
@@ -38,11 +39,11 @@ OmegaM_fid = 0.31
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
-rand_nbar = True
+rand_nbar = False
 
 ## Directories
-tmpdir = '/tmp/phi_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_production5a/summed_phi_alpha/' # to hold intermediate sums (should be large)
+tmpdir = '/tmp/phi13_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_final13/summed_phi_alpha/' # to hold intermediate sums (should be large)
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
@@ -102,9 +103,9 @@ print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
 if rand_nbar:
-    print("n-bar: from randoms")
+    print("n-bar: from randoms (Patchy)")
 else:
-    print("n-bar: from mask")
+    print("n-bar: from mask (Patchy)")
 print("Forward model pixellation: %d"%include_pix)
 print("\nk-min: %.3f"%k_min)
 print("k-max: %.3f"%k_max)
@@ -134,14 +135,13 @@ os.makedirs(tmpdir)
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 
-nbar_unif = 1e-3
 # Load a uniform random sample for data
+nbar_unif = 1e-3
 data = UniformCatalog(nbar_unif,boxsize_grid,seed=rand_it)
 print("Created %d uniform randoms"%len(data))
 
 # Assign to a grid
-print("Assigning to grid")
-diff = grid_uniforms(data, nbar_unif, boxsize_grid,grid_3d,MAS='TSC')
+diff = grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC')
 shot_fac_unif = 1.
 del data
 
@@ -160,7 +160,6 @@ if rand_nbar:
 else:
     # load density mesh (used to define coordinate arrays)
     density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)[1]
-
 del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
@@ -171,6 +170,9 @@ nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
 del density
+
+# Load MAS grids
+MAS_mat = load_MAS(boxsize_grid, grid_3d)
 
 # For weightings, we should use a smooth nbar always.
 nbar_weight = nbar_mask.copy()
@@ -186,18 +188,16 @@ del nbar_mask
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
 
-# Load MAS grids
-MAS_mat = load_MAS(boxsize_grid, grid_3d)
-
 if wtype==1:
     # Compute spherical harmonic fields in real and Fourier-space
     Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
-    del r_grids, k_grids
 
     # Load fit to Patchy P(k)
     pk_input = np.loadtxt(pk_input_file)
     fid_pk_interp = interp1d(pk_input[:,0],pk_input[:,1:].T)
-    pk_map = fid_pk_interp(k_norm)
+    pk_map = fid_pk_interp(k_norm)[:lmax//2+1]
+
+del r_grids, k_grids
 
 # Compute k-space filters
 k_filters = compute_filters(k_min,k_max,dk,k_norm)
@@ -230,31 +230,24 @@ for a in range(n_k):
             bins_index.append([a,b,c])
             n_bins += 1
 
-############################ COVARIANCE FUNCTIONS ##############################
-
-### Define true random density
-nbar_analyt = np.ones_like(diff)*nbar_unif
-
 ### True inverse covariance of uniform randoms
 def applyCinv_unif(input_map):
     """Apply true C^{-1} to the uniform map including MAS effects."""
-    return ift(ft(input_map)*MAS_mat**2)/nbar_analyt*v_cell/shot_fac_unif
+    return ift(ft(input_map)*MAS_mat**2)/nbar_unif*v_cell/shot_fac_unif
 
 ############################## COMPUTE g_a #####################################
 
-## Compute FT[n*H^-1[d](r)] (necessary part of C_a[x] derivative)
 print("\n## Computing g-a maps assuming %s weightings"%weight_str)
-
-# Compute H^-1.a
+# Compute C^-1 a
 if wtype==0:
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix) # C^-1.x
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
 
-Ainv_diff = applyCinv_unif(diff) # A^-1.a
+Ainv_diff = applyCinv_unif(diff) # A^-1 a
 del diff
 
-# Now compute FT[nC^-1d], optionally including MAS matrix operations
+# Now compute FT[n C^-1 a], optionally including MAS matrix operations
 if include_pix:
     ft_nCinv_a = ft(ift(ft(Cinv_diff)/MAS_mat)*nbar)
     ft_nAinv_a = ft(ift(ft(Ainv_diff)/MAS_mat)*nbar)
@@ -273,7 +266,7 @@ for i in range(n_k):
 
 del ft_nCinv_a, ft_nAinv_a
 
-############## COMPUTE < tilde-g_alpha g_beta > contribution ###################
+############## COMPUTE < tilde-g_alpha g_beta > CONTRIBUTION ###################
 
 print("\n## Computing < tilde-g-a g-b > contribution assuming %s weightings"%weight_str)
 
@@ -288,11 +281,9 @@ for a in range(n_k):
     for b in range(a,n_k):
         tmp_av = 0.5*(tg_a*all_g_a[b]+g_a*all_tilde_g_a[b])
 
-        # Save the product
-        # Note that this is stored for a <= b only by symmetry.
+        # Save the product (note that this is stored for a <= b only by symmetry).
         looptime = time.time()
 
-<<<<<<< HEAD
         infile_name = bias_ab_file_name(a,b)
         lock = fasteners.InterProcessLock(infile_name+'.lock')  # for processes
 
@@ -310,35 +301,8 @@ for a in range(n_k):
                 its = []
             if rand_it not in its:
                 np.savez(infile_name,dat=bias_ab+tmp_av/N_mc,ct=ct_ab+1,its=its+[rand_it])
-=======
-        # Be careful that only one script adds to the file at once!
-        lockfile = lockdir+'bias_lock_%d%d.npy'%(a,b)
-        while True:
-            if os.path.exists(lockfile) and time.time()-looptime<60:
-                print('< g_a g_b > file locked for editing!')
-                time.sleep(1)
-            else:
-                np.save(lockfile,0)
-                if os.path.exists(bias_ab_file_name(a,b)):
-                    infile = np.load(bias_ab_file_name(a,b))
-                    bias_ab = infile['dat']
-                    ct_ab = infile['ct']
-                    its = list(infile['its'])
-                    if rand_it in its:
-                        os.remove(lockfile)
-                        break # already computed this simulation!
-                    infile.close()
-                else:
-                    # first iteration!
-                    bias_ab = 0.
-                    ct_ab = 0
-                    its = []
-                np.savez(bias_ab_file_name(a,b),dat=bias_ab+tmp_av/N_mc,ct=ct_ab+1,its=its+[rand_it])
-                os.remove(lockfile)
-                break;
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 
-##################### COMPUTE unsymmetrized phi_alpha ##########################
+##################### COMPUTE UNSYMMETRIZED phi_alpha ##########################
 
 print("\n## Computing unsymmetrized phi-alpha maps assuming %s weightings"%weight_str)
 
@@ -358,29 +322,17 @@ def compute_unsymmetrized_phi(a):
         for c in range(n_k):
             # Compute n(r) * IFT[Theta^c(k)FT[g^a[m]g^b[m]]], optionally with MAS corrections
             if include_pix:
-<<<<<<< HEAD
                 phi_alpha = np.real_if_close(ift(ft(ift(k_filters[c]*ft_g_ab)*nbar)/MAS_mat)/v_cell)
             else:
                 phi_alpha = np.real_if_close(ift(k_filters[c]*ft_g_ab)*nbar/v_cell)
-=======
-                phi_alpha = ift(ft(ift(k_filters[c]*ft_g_ab)*nbar)/MAS_mat)/v_cell
-            else:
-                phi_alpha = ift(k_filters[c]*ft_g_ab)*nbar/v_cell
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
             np.save(tmp_phi_alpha_file_name(a,b,c),phi_alpha)
             del phi_alpha
 
             # Repeat for A^-1 weighted field
             if include_pix:
-<<<<<<< HEAD
                 tilde_phi_alpha = np.real_if_close(ift(ft(ift(k_filters[c]*ft_tg_ab)*nbar)/MAS_mat)/v_cell)
             else:
                 tilde_phi_alpha = np.real_if_close(ift(k_filters[c]*ft_tg_ab)*nbar/v_cell)
-=======
-                tilde_phi_alpha = ift(ft(ift(k_filters[c]*ft_tg_ab)*nbar)/MAS_mat)/v_cell
-            else:
-                tilde_phi_alpha = ift(k_filters[c]*ft_tg_ab)*nbar/v_cell
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
             np.save(tmp_tilde_phi_alpha_file_name(a,b,c),tilde_phi_alpha)
             del tilde_phi_alpha
         del ft_g_ab, ft_tg_ab
@@ -392,7 +344,7 @@ for i in range(n_k):
 
 del all_g_a, all_tilde_g_a
 
-############## COMPUTE symmetrized phi_alpha and C^-1.phi_alpha ################
+############## COMPUTE SYMMETRIZED phi_alpha AND C^-1 phi_alpha ################
 
 print("\n## Computing symmetrized phi-alpha maps and C^-1 phi_alpha assuming %s weightings"%weight_str)
 
@@ -431,30 +383,11 @@ def analyze_phi(index):
             ct_alpha1 = infile['ct']
             its = list(infile['its'])
         else:
-<<<<<<< HEAD
             this_sum_tilde_phi_alpha = 0.
             ct_alpha1 = 0
             its = []
         if rand_it not in its:
             np.savez(infile_name,dat=this_sum_tilde_phi_alpha+tilde_phi_alpha/N_mc,ct=ct_alpha1+1,its=its+[rand_it])
-=======
-            np.save(lockfile,0)
-            if os.path.exists(sum_tilde_phi_alpha_file_name(a,b,c)):
-                infile = np.load(sum_tilde_phi_alpha_file_name(a,b,c))
-                this_sum_tilde_phi_alpha = infile['dat']
-                ct_alpha1 = infile['ct']
-                its = list(infile['its'])
-                if rand_it in its:
-                    os.remove(lockfile)
-                    break; # already computed this simulation
-            else:
-                this_sum_tilde_phi_alpha = 0.
-                ct_alpha1 = 0
-                its = []
-            np.savez(sum_tilde_phi_alpha_file_name(a,b,c),dat=this_sum_tilde_phi_alpha+tilde_phi_alpha/N_mc,ct=ct_alpha1+1,its=its+[rand_it])
-            os.remove(lockfile)
-            break;
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     del tilde_phi_alpha
 
     ### 2a. Load phi_alpha
@@ -464,15 +397,9 @@ def analyze_phi(index):
 
     ### 2b. Compute C^-1 phi_alpha
     if wtype==0:
-<<<<<<< HEAD
         Cinv_phi_alpha = applyCinv_fkp(phi_alpha,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
     else:
         Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix)
-=======
-        Cinv_phi_alpha = applyCinv_fkp(phi_alpha,nbar_weight,MAS_mat,v_cell,shot_fac,use_MAS=include_pix)
-    else:
-        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,use_MAS=include_pix)
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
     del phi_alpha
 
     ### 2c. Save to temporary disk
@@ -492,41 +419,18 @@ def analyze_phi(index):
             ct_alpha2 = infile['ct']
             its = list(infile['its'])
         else:
-<<<<<<< HEAD
             this_sum_Cinv_phi_alpha = 0.
             ct_alpha2 = 0
             its = []
         if rand_it not in its:
             np.savez(infile_name,dat=this_sum_Cinv_phi_alpha+Cinv_phi_alpha/N_mc,ct=ct_alpha2+1,its=its+[rand_it])
-
-    # ### 2d. Add to global average
     del Cinv_phi_alpha
 
-=======
-            np.save(lockfile,0)
-            if os.path.exists(sum_Cinv_phi_alpha_file_name(a,b,c)):
-                infile = np.load(sum_Cinv_phi_alpha_file_name(a,b,c))
-                this_sum_Cinv_phi_alpha = infile['dat']
-                ct_alpha2 = infile['ct']
-                its = list(infile['its'])
-                if rand_it in its:
-                    os.remove(lockfile)
-                    break; # already computed this simulation!
-            else:
-                this_sum_Cinv_phi_alpha = 0.
-                ct_alpha2 = 0
-                its = []
-            np.savez(sum_Cinv_phi_alpha_file_name(a,b,c),dat=this_sum_Cinv_phi_alpha+Cinv_phi_alpha/N_mc,ct=ct_alpha2+1,its=its+[rand_it])
-            os.remove(lockfile)
-            break;
-    del Cinv_phi_alpha
-
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
 for i in range(n_bins):
     print("On index %d of %d"%(i+1,n_bins))
     analyze_phi(i)
 
-###################### COMPUTE Fisher matrix contribution ######################
+###################### COMPUTE FISHER MATRIX CONTRIBUTION ######################
 
 print("\n### Computing Fisher matrix contribution in %d bins satisfying triangle conditions"%(n_bins))
 
@@ -555,11 +459,7 @@ def load_row(alpha):
 
     for beta in range(alpha,n_bins): # compute diagonal by symmetry
         Cinv_phi_beta = np.load(Cinv_phi_alpha_file_name(*bins_index[beta]))
-<<<<<<< HEAD
         this_row[beta] = np.real(np.sum(tilde_phi_alpha*Cinv_phi_beta)/12.)
-=======
-        this_row[beta] = np.real_if_close(np.sum(tilde_phi_alpha*Cinv_phi_beta)/12.)
->>>>>>> c3992fbb0e5f95d0f96bd056cf1bfa0995eb7218
         del Cinv_phi_beta
     del tilde_phi_alpha
 

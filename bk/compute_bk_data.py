@@ -26,6 +26,9 @@ else:
 
 ########################### INPUT PARAMETERS ###########################
 
+## Number of Monte Carlo simulations used
+N_mc = 50
+
 ## k-space binning
 k_min = 0.00
 k_max = 0.16
@@ -35,21 +38,19 @@ dk = 0.01
 h_fid = 0.676
 OmegaM_fid = 0.31
 
-## Number of Monte Carlo simulations used
-N_mc = 50
-
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
 rand_nbar = True
 
+# Whether to remove subtraction of q-bar piece (for testing only)
 use_qbar = True
 if not use_qbar:
-    print("Not subtracting q-bar pieces!")
+    print("CAUTION: Not subtracting q-bar pieces!\n")
 
 ## Directories
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_production5a/summed_phi_alpha/' # to hold intermediate sums (should be large)
-outdir = '/projects/QUIJOTE/Oliver/bk_opt_production5a/bk_estimates/' # to hold output bispectra
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_final11/summed_phi_alpha/' # to hold intermediate sums (should be large)
+outdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_final11/bk_estimates/' # to hold output bispectra
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
@@ -150,6 +151,7 @@ cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 data = load_data(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
 randoms = load_randoms(sim_no,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False);
 if rand_nbar:
+    print("Loading nbar from random particles")
     diff, nbar_rand, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=True,return_norm=False)
 else:
     diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
@@ -169,6 +171,9 @@ k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
 del density
 
+# Load MAS grids
+MAS_mat = load_MAS(boxsize_grid, grid_3d)
+
 # For weightings, we should use a smooth nbar always.
 nbar_weight = nbar_mask.copy()
 if rand_nbar:
@@ -182,9 +187,6 @@ del nbar_mask
 
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
-
-# Load MAS grids
-MAS_mat = load_MAS(boxsize_grid, grid_3d)
 
 if wtype==1:
     # Compute spherical harmonic fields in real and Fourier-space
@@ -230,18 +232,17 @@ for a in range(n_k):
 
 ########################### COMPUTE g_a ###########################
 
-## Compute FT[n*H^-1[d](r)] (necessary part of C_a[x] derivative)
 print("\n## Computing g-a maps assuming %s weightings"%weight_str)
 
-# Compute H^-1.d
+# Compute C^-1 d
 if wtype==0:
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=50,include_pix=include_pix)
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
     del pk_map, Yk_lm, Yr_lm
 del diff, nbar_weight
 
-# Now compute FT[nH^-1d], optionally including MAS matrix operations
+# Now compute FT[nC^-1d], optionally including MAS matrix operations
 if include_pix:
     ft_nCinv_d = ft(ift(ft(Cinv_diff)/MAS_mat)*nbar)
 else:
@@ -286,7 +287,6 @@ def bias_term(a,b):
     filename = mcdir+'%s%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(root,N_mc,patch,z_type,weight_str,grid_factor,a0,a1,k_min,k_max,dk)
     infile = np.load(filename)
     if infile['ct']!=N_mc: raise Exception("Wrong number of bias simulations computed! (%d of %d)"%(infile['ct'],N_mc))
-
     return infile['dat']
 
 # Iterate over all possible triangles, creating q_alpha
@@ -310,7 +310,7 @@ for a in range(n_k):
 # Add symmetry factor
 q_alpha = np.asarray(q_alpha)/Delta_abc
 
-########################### COMPUTE Fisher matrix ###########################
+########################### CONSTRUCT FISHER MATRIX ###########################
 
 full_fish_file_name = outdir+'%s_mean%d_%s_%s_%s_g%.1f_full-fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 
@@ -375,7 +375,6 @@ if not os.path.exists(full_fish_file_name):
     # Iterate over simulations and normalize correctly
     full_fisher = np.zeros((n_bins,n_bins))
     for i in range(1,N_mc+1):
-        return mcdir+'%s_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(root,N_mc,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
         full_fisher += np.load(fish_file_name(i))/N_mc
 
     full_fisher -= mean_fisher

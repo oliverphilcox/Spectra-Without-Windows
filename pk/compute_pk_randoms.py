@@ -9,7 +9,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
+from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift
 from covariances_pk import applyC_alpha, applyN
 
 # Read command line arguments
@@ -150,7 +150,6 @@ if rand_nbar:
 else:
     # load density mesh (used to define coordinate arrays)
     density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)[1]
-
 del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
