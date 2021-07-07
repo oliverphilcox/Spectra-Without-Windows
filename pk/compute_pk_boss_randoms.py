@@ -151,6 +151,9 @@ if rand_nbar:
 else:
     # load density mesh (used to define coordinate arrays)
     density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)[1]
+
+# Compute renormalization factor to match gridded randoms
+renorm2 = np.asarray(alpha_ran*((rand_true['NBAR']*rand_true['WEIGHT'])).sum())
 del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
@@ -174,10 +177,15 @@ else:
     nbar = nbar_mask.copy()
 del nbar_mask
 
-############################## GRID DEFINITIONS ################################
-
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
+
+# Apply renormalization factors
+print("Renormalization factor: %.3f"%(renorm2/(np.sum(nbar**2.)*v_cell)))
+nbar *= renorm2/(np.sum(nbar**2.)*v_cell)
+nbar_weight *= renorm2/(np.sum(nbar_weight**2.)*v_cell)
+
+############################## GRID DEFINITIONS ################################
 
 # Compute renormalization factor (not currently used)
 rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)

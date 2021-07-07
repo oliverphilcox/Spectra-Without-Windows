@@ -1,7 +1,7 @@
-# compute_bk_randoms.py (Oliver Philcox, 2021)
+# compute_bk_boss_randoms.py (Oliver Philcox, 2021)
 ### Compute the component g^a maps for the binned bispectrum of uniformly distributed random particles.
 ### These are then used to compute phi_alpha and C^-1 phi_alpha maps and added to Monte Carlo averages.
-### Note that we assume a Patchy geometry always here.
+### Note that we assume a BOSS geometry always here, such that this is suitable for combining with BOSS data.
 
 # Import modules
 from nbodykit.lab import *
@@ -42,12 +42,12 @@ include_pix = False
 rand_nbar = False
 
 ## Directories
-tmpdir = '/tmp/phiSR3_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_3/summed_phi_alpha/' # to hold intermediate sums (should be large)
+tmpdir = '/tmp/phiS2_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_boss_finalS_2/summed_phi_alpha/' # to hold intermediate sums (should be large)
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
-    pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
+    pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/boss_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
 
 #### In principle, nothing below here needs to be altered for BOSS
 
@@ -103,9 +103,9 @@ print("Weight-Type: %s"%weight_str)
 print("\nPatch: %s"%patch)
 print("Redshift-type: %s"%z_type)
 if rand_nbar:
-    print("n-bar: from randoms (Patchy)")
+    print("n-bar: from randoms (BOSS)")
 else:
-    print("n-bar: from mask (Patchy)")
+    print("n-bar: from mask (BOSS)")
 print("Forward model pixellation: %d"%include_pix)
 print("\nk-min: %.3f"%k_min)
 print("k-max: %.3f"%k_max)
@@ -121,12 +121,12 @@ init = time.time()
 ################################### LOAD DATA ##################################
 
 ### First check if we actually need to compute this simulation
-fish_file_name = mcdir+'patchy_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+fish_file_name = mcdir+'boss_unif%d_%s_%s_%s_g%.1f_fish_alpha_beta_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
 if os.path.exists(fish_file_name):
     print("Simulation already completed!")
     sys.exit();
 
-print("\n## Loading random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
+print("\n## Loading BOSS random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
 
 # Clean any crud from a previous run
 if os.path.exists(tmpdir): shutil.rmtree(tmpdir)
@@ -146,9 +146,9 @@ shot_fac_unif = 1.
 del data
 
 # Compute alpha for nbar rescaling
-print("Loading data")
-data_true = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-rand_true = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+print("Loading BOSS data")
+data_true = load_data(-1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
+rand_true = load_randoms(-1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
 alpha_ran = (data_true['WEIGHT'].sum()/rand_true['WEIGHT'].sum()).compute()
 shot_fac = ((data_true['WEIGHT']**2.).mean().compute()+alpha_ran*(rand_true['WEIGHT']**2.).mean().compute())/rand_true['WEIGHT'].mean().compute()
 norm = 1./np.asarray(alpha_ran*(rand_true['NBAR']*rand_true['WEIGHT']*rand_true['WEIGHT_FKP']**2.).mean().compute())
@@ -166,8 +166,8 @@ renorm3 = np.asarray(alpha_ran*((rand_true['NBAR']**2*rand_true['WEIGHT']**2.)).
 del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
-print("Loading nbar from mask")
-nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+print("Loading BOSS nbar from mask")
+nbar_mask = load_nbar(-1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
@@ -278,7 +278,7 @@ del ft_nCinv_a, ft_nAinv_a
 
 print("\n## Computing < tilde-g-a g-b > contribution assuming %s weightings"%weight_str)
 
-bias_ab_file_name = lambda a,b: mcdir+'patchy%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_mc,patch,z_type,weight_str,grid_factor,a,b,k_min,k_max,dk)
+bias_ab_file_name = lambda a,b: mcdir+'boss%d_%s_%s_%s_g%.1f_bias_map%d,%d_k%.3f_%.3f_%.3f.npz'%(N_mc,patch,z_type,weight_str,grid_factor,a,b,k_min,k_max,dk)
 
 # Iterate over bins
 for a in range(n_k):
@@ -314,8 +314,8 @@ for a in range(n_k):
 
 print("\n## Computing unsymmetrized phi-alpha maps assuming %s weightings"%weight_str)
 
-tmp_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_patchy_unif%d_%s_%s_%s_g%.1f_phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-tmp_tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_patchy_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+tmp_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_boss_unif%d_%s_%s_%s_g%.1f_phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+tmp_tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'tmp_boss_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
 
 def compute_unsymmetrized_phi(a):
     #### Compute the unsymmetrized phi maps for all betas given some alpha
@@ -356,10 +356,10 @@ del all_g_a, all_tilde_g_a
 
 print("\n## Computing symmetrized phi-alpha maps and C^-1 phi_alpha assuming %s weightings"%weight_str)
 
-sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_mc,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_patchy_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_mc,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-Cinv_phi_alpha_file_name = lambda a,b,c: tmpdir+'patchy_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
-tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'patchy_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+sum_Cinv_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_boss_unif%d_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_mc,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+sum_tilde_phi_alpha_file_name = lambda a,b,c: mcdir+'sum_boss_unif%d_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npz'%(N_mc,patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+Cinv_phi_alpha_file_name = lambda a,b,c: tmpdir+'boss_%s_%s_%s_g%.1f_Cinv-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
+tilde_phi_alpha_file_name = lambda a,b,c: tmpdir+'boss_%s_%s_%s_g%.1f_tilde-phi^alpha_map%d,%d,%d_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,grid_factor,a,b,c,k_min,k_max,dk)
 
 def analyze_phi(index):
 

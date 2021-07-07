@@ -41,7 +41,7 @@ OmegaM_fid = 0.31
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
-rand_nbar = True
+rand_nbar = False
 
 # Whether to remove subtraction of q-bar piece (for testing only)
 use_qbar = True
@@ -49,8 +49,8 @@ if not use_qbar:
     print("CAUTION: Not subtracting q-bar pieces!\n")
 
 ## Directories
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_final11/summed_phi_alpha/' # to hold intermediate sums (should be large)
-outdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_final11/bk_estimates/' # to hold output bispectra
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalS_1/summed_phi_alpha/' # to hold intermediate sums (should be large)
+outdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalS_1/bk_estimates/' # to hold output bispectra
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
@@ -160,6 +160,9 @@ else:
 alpha_ran = data['WEIGHT'].sum().compute()/randoms['WEIGHT'].sum().compute()
 shot_fac = ((data['WEIGHT']**2.).mean().compute()+alpha_ran*(randoms['WEIGHT']**2.).mean().compute())/randoms['WEIGHT'].mean().compute()
 print("alpha = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
+
+# Compute renormalization factor to match gridded randoms
+renorm3 = np.asarray(alpha_ran*((randoms['NBAR']**2*randoms['WEIGHT']**2.)).sum())
 del data, randoms
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
@@ -183,10 +186,14 @@ else:
     nbar = nbar_mask.copy()
 del nbar_mask
 
-########################### GRID DEFINITIONS ###########################
-
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
+
+# Apply renormalization factors
+nbar *= renorm3/(np.sum(nbar**3.)*v_cell)
+nbar_weight *= renorm3/(np.sum(nbar_weight**3.)*v_cell)
+
+########################### GRID DEFINITIONS ###########################
 
 if wtype==1:
     # Compute spherical harmonic fields in real and Fourier-space

@@ -1,6 +1,8 @@
 slurm/*
 *.pyc
 notebooks/*
+figs/*
 bk/_*
 src/test*.py
 *test*.py
+bk/compute_bk_win_data.py

@@ -40,7 +40,7 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,wei
 
     valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
     data = data[valid]
-    data['Z']
+    
     if sim_no==-1:
         print("Loaded %d %s galaxies from BOSS\n"%(len(data),patch))
     else:
