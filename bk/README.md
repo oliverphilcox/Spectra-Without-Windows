@@ -27,3 +27,7 @@ Within the code we can specify the following additional parameters:
 - ```include_pix```: If true, forward model the effects of pixellation on the density field. (NB: the pixel window function is still removed at leading order in both cases).
 - ```rand_nbar```: If true, compute the background number density from random particles rather than from the survey mask.
 - ```use_qbar```: If false, do not subtract the 'q-bar' term in the bispectrum estimator (for testing only).
+
+### Data (*COMING SOON*)
+
+In the [data/](data) directory, we give the raw unwindowed bispectrum measurements of BOSS and 2048 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.
