@@ -49,8 +49,8 @@ if not use_qbar:
     print("CAUTION: Not subtracting q-bar pieces!\n")
 
 ## Directories
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalS_1/summed_phi_alpha/' # to hold intermediate sums (should be large)
-outdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalS_1/bk_estimates/' # to hold output bispectra
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_2/summed_phi_alpha/' # to hold intermediate sums (should be large)
+outdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_2/bk_estimates/' # to hold output bispectra
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)
@@ -190,8 +190,8 @@ del nbar_mask
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
 
 # Apply renormalization factors
-nbar *= renorm3/(np.sum(nbar**3.)*v_cell)
-nbar_weight *= renorm3/(np.sum(nbar_weight**3.)*v_cell)
+nbar *= np.power(renorm3/(np.sum(nbar**3.)*v_cell),1./3.)
+nbar_weight *= np.power(renorm3/(np.sum(nbar_weight**3.)*v_cell),1./3.)
 
 ########################### GRID DEFINITIONS ###########################
 
