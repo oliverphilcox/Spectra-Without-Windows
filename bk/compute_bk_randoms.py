@@ -37,13 +37,13 @@ h_fid = 0.676
 OmegaM_fid = 0.31
 
 # Whether to forward-model pixellation effects.
-include_pix = True
+include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
 rand_nbar = False
 
 ## Directories
-tmpdir = '/tmp/phiSR4_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_4/summed_phi_alpha/' # to hold intermediate sums (should be large)
+tmpdir = '/tmp/phiSR2_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_2/summed_phi_alpha/' # to hold intermediate sums (should be large)
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)

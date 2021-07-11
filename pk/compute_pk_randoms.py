@@ -26,7 +26,7 @@ else:
 
 ## k-space binning
 k_min = 0.0
-k_max = 0.26
+k_max = 0.31
 dk = 0.005
 lmax = 4
 
@@ -37,10 +37,10 @@ OmegaM_fid = 0.31
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
-rand_nbar = True
+rand_nbar = False
 
 # Directories
-outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy/' # to hold output Fisher matrices
+outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchySR/' # to hold output Fisher matrices
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -186,10 +186,6 @@ nbar_weight *= np.sqrt(renorm2/(np.sum(nbar_weight**2.)*v_cell))
 
 ############################## GRID DEFINITIONS ################################
 
-# Compute renormalization factor (not currently used)
-rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
-print("Rescale factor: %.4e"%rescale_fac)
-
 # Compute spherical harmonic fields in real and Fourier-space
 Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
 
@@ -208,7 +204,7 @@ n_k = len(k_filters)
 ### True inverse covariance
 def applyCinv_unif(input_map):
     """Apply true C^{-1} to the uniform map including MAS effects."""
-    return ift(ft(input_map)*MAS_mat**2)/nbar_analyt*v_cell/shot_fac_unif
+    return ift(ft(input_map)*MAS_mat**2)/nbar_unif*v_cell/shot_fac_unif
 
 ######################### COMPUTE FISHER + BIAS ################################
 

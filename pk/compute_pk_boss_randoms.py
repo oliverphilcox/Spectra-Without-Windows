@@ -187,10 +187,6 @@ nbar_weight *= np.sqrt(renorm2/(np.sum(nbar_weight**2.)*v_cell))
 
 ############################## GRID DEFINITIONS ################################
 
-# Compute renormalization factor (not currently used)
-rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
-print("Rescale factor: %.4e"%rescale_fac)
-
 # Compute spherical harmonic fields in real and Fourier-space
 Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
 

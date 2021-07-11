@@ -29,7 +29,7 @@ else:
 
 ## k-space binning
 k_min = 0.0
-k_max = 0.26
+k_max = 0.31
 dk = 0.005
 lmax = 4
 
@@ -38,15 +38,15 @@ h_fid = 0.676
 OmegaM_fid = 0.31
 
 # Number of Monte Carlo sims used
-N_mc = 50
+N_mc = 100
 
 # Whether to forward-model pixellation effects.
 include_pix = False
 # If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
-rand_nbar = True
+rand_nbar = False
 
 # Directories
-outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchy/' # to hold output Fisher matrices and power spectra
+outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchySR/' # to hold output Fisher matrices and power spectra
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -124,9 +124,9 @@ init = time.time()
 
 # Check if simulation has already been analyzed
 if sim_no!=-1:
-    pk_file_name = outdir + 'pk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.npy'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+    pk_file_name = outdir + 'pk_patchy%d_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(sim_no,patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
 else:
-    pk_file_name = outdir + 'pk_boss_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.npy'%(patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
+    pk_file_name = outdir + 'pk_boss_%s_%s_%s_N%d_g%.1f_k%.3f_%.3f_%.3f.txt'%(patch,z_type,weight_str,N_mc,grid_factor,k_min,k_max,dk)
 if os.path.exists(pk_file_name):
     print("Simulation has already been computed; exiting!")
     sys.exit()
@@ -207,10 +207,6 @@ nbar *= np.sqrt(renorm2/(np.sum(nbar**2.)*v_cell))
 nbar_weight *= np.sqrt(renorm2/(np.sum(nbar_weight**2.)*v_cell))
 
 ############################ GRID DEFINITIONS ##################################
-
-# Compute renormalization factor (not currently used)
-rescale_fac = 1./np.sqrt(np.sum(nbar**2)*v_cell*norm)
-print("Rescale factor: %.4e"%rescale_fac)
 
 # Compute spherical harmonic fields in real and Fourier-space
 Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
