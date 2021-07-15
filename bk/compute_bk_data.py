@@ -27,7 +27,7 @@ else:
 ########################### INPUT PARAMETERS ###########################
 
 ## Number of Monte Carlo simulations used
-N_mc = 50
+N_mc = 100
 
 ## k-space binning
 k_min = 0.00
@@ -49,8 +49,8 @@ if not use_qbar:
     print("CAUTION: Not subtracting q-bar pieces!\n")
 
 ## Directories
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_2/summed_phi_alpha/' # to hold intermediate sums (should be large)
-outdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSR_2/bk_estimates/' # to hold output bispectra
+mcdir = '/projects/QUIJOTE/Oliver/boss_pkbk/summed_phi_alpha/' # to hold intermediate sums (should be large)
+outdir = '/projects/QUIJOTE/Oliver/boss_pkbk/bk_estimates/' # to hold output bispectra
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)

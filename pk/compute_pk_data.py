@@ -46,7 +46,7 @@ include_pix = False
 rand_nbar = False
 
 # Directories
-outdir = '/projects/QUIJOTE/Oliver/pk_opt_patchySR/' # to hold output Fisher matrices and power spectra
+outdir = '/projects/QUIJOTE/Oliver/boss_pkbk/' # to hold output Fisher matrices and power spectra
 
 if wtype==1:
     # Fiducial power spectrum input
