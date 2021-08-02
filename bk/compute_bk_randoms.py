@@ -42,8 +42,8 @@ include_pix = False
 rand_nbar = False
 
 ## Directories
-tmpdir = '/tmp/phi_%s_%s_alpha%d_%.1f/'%(patch,z_type,rand_it,grid_factor) # to hold temporary output (should be large)
-mcdir = '/projects/QUIJOTE/Oliver/boss_pkbk/summed_phi_alpha/' # to hold intermediate sums (should be large)
+tmpdir = '/tmp/phi2_%s_%s_alpha%d_%.1f/'%(patch,z_type,rand_it,grid_factor) # to hold temporary output (should be large)
+mcdir = '/projects/QUIJOTE/Oliver/bk_opt_patchy_finalSRW_2/summed_phi_alpha/' # to hold intermediate sums (should be large)
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)

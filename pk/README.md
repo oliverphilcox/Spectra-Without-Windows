@@ -26,7 +26,8 @@ Within the code we can specify the following additional parameters:
 - ```outdir```: Output directory for saving power spectra. Additional auxilliary data including bias and Fisher matrix terms are also stored.
 - ```include_pix```: If true, forward model the effects of pixellation on the density field. (NB: the pixel window function is still removed at leading order in both cases).
 - ```rand_nbar```: If true, compute the background number density from random particles rather than from the survey mask.
+- ```low_mem```: If true, save and reload temporary random files rather than holding them in memory. This gives a significant increase in computation time, but may be useful if memory is limited.
 
-### Data (*COMING SOON*)
+### Data
 
-In the [data/](data) directory, we give the raw unwindowed power spectrum measurements of BOSS and 2048 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.
+In the [data/](data) directory, we give the raw unwindowed power spectrum measurements of BOSS and 999 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.

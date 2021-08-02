@@ -29,7 +29,7 @@ else:
 ## Number of Monte Carlo simulations used
 N_mc = 100
 
-## k-space binning
+## k-spae binning
 k_min = 0.00
 k_max = 0.16
 dk = 0.01

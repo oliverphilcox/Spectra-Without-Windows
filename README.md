@@ -3,8 +3,8 @@
 This repository contains details of the window-free analysis of BOSS DR12 data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287).
 
 ## Outline
-- [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS and 2048 Patchy simulations (*coming soon*).
-- [bk/](bk): Analysis code to estimate unwindowed bispectra. We additionally supply the raw bispectrum measurements of BOSS and 2048 Patchy simulations (*coming soon*).
+- [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS and 999 Patchy simulations.
+- [bk/](bk): Analysis code to estimate unwindowed bispectra. We additionally supply the raw bispectrum measurements of BOSS and 999 Patchy simulations.
 - [src/](src): Various Python utilities used in the unwindowed estimators.
 - [generate_mask.py](generate_mask.py): Utility function to generate the background number density, n(r) from the survey mask and n(z) distribution. This is described in the code header.
 

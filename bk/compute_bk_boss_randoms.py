@@ -25,7 +25,7 @@ else:
 ############################### INPUT PARAMETERS ###############################
 
 ## Number of Monte Carlo simulations used
-N_mc = 50
+N_mc = 100
 
 ## k-space binning
 k_min = 0.00
@@ -42,8 +42,8 @@ include_pix = False
 rand_nbar = False
 
 ## Directories
-tmpdir = '/tmp/phiS2_alpha%d_%.1f/'%(rand_it,grid_factor) # to hold temporary output (should be large)
-mcdir = '/projects/QUIJOTE/Oliver/bk_opt_boss_finalS_2/summed_phi_alpha/' # to hold intermediate sums (should be large)
+tmpdir = '/tmp/phiB_%s_%s_alpha%d_%.1f/'%(patch,z_type,rand_it,grid_factor) # to hold temporary output (should be large)
+mcdir = '/projects/QUIJOTE/Oliver/boss_pkbk/summed_phi_alpha/' # to hold intermediate sums (should be large)
 
 if wtype==1:
     # Fiducial power spectrum input (for ML weights)

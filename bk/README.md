@@ -28,6 +28,6 @@ Within the code we can specify the following additional parameters:
 - ```rand_nbar```: If true, compute the background number density from random particles rather than from the survey mask.
 - ```use_qbar```: If false, do not subtract the 'q-bar' term in the bispectrum estimator (for testing only).
 
-### Data (*COMING SOON*)
+### Data
 
-In the [data/](data) directory, we give the raw unwindowed bispectrum measurements of BOSS and 2048 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.
+In the [data/](data) directory, we give the raw unwindowed bispectrum measurements of BOSS and 999 MultiDark-Patchy simulations. Further details of the input parameters can be found in the file headers.

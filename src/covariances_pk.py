@@ -177,3 +177,35 @@ def applyC_alpha(input_map,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,includ
                 out_derivs.append(nbar*ift(tmp2)/v_cell)
 
     return out_derivs
+
+
+def applyC_alpha_single(input_map,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,i,a,include_pix=True,data=False):
+    """Compute derivatives C_{,alpha}(r,r') for the data covariance C. We assume C_D = Sum_alpha C_{,alpha} p_alpha.
+    We compute the derivatives with respect to a single power spectrum bins and a single even multipole.
+
+    This includes pixellation in full if include_pix=True, else it just multiplies by the MAS window if data=True.
+    """
+
+    if include_pix:
+        tmp_map = ift(ft(input_map)/MAS_mat)*nbar
+    else:
+        tmp_map = input_map*nbar
+
+    # Compute Sum_m Y_lm(k)FT[Y_lm(r)n(r)x(r)]
+    f_nx_l = 0.
+
+    for m_i in range(len(Yk_lm[i])):
+        f_nx_l += ft(tmp_map*Yr_lm[i][m_i])*Yk_lm[i][m_i]
+
+    if not include_pix:
+        if data:
+            # add in factor of M^2 to remove pixellation effects (for data only)
+            f_nx_l *= MAS_mat**2.
+
+    tmp2 = 4.*np.pi/(4.*i+1.)*k_filters[a]*f_nx_l
+
+    # Add to output array
+    if include_pix:
+        return ift(ft(nbar*ift(tmp2))/MAS_mat)/v_cell
+    else:
+        return nbar*ift(tmp2)/v_cell
