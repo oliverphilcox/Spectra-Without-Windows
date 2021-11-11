@@ -1,6 +1,7 @@
 slurm/*
 *.pyc
 *.py~
+*.md~
 notebooks/*
 figs/*
 bk/_*
