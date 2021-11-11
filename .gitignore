@@ -1,11 +1,14 @@
 slurm/*
 *.pyc
+*.py~
 notebooks/*
 figs/*
 bk/_*
+src/*.pyc
 src/test*.py
 *test*.py
 *corr*.py
+*old*
 *nseries*.py
 bk/compute_bk_win_data.py
 *nseries*.py

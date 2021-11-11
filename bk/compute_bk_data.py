@@ -160,9 +160,6 @@ else:
 alpha_ran = data['WEIGHT'].sum().compute()/randoms['WEIGHT'].sum().compute()
 shot_fac = ((data['WEIGHT']**2.).mean().compute()+alpha_ran*(randoms['WEIGHT']**2.).mean().compute())/randoms['WEIGHT'].mean().compute()
 print("alpha = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
-
-# Compute renormalization factor to match gridded randoms
-renorm3 = np.asarray(alpha_ran*((randoms['NBAR']**2*randoms['WEIGHT']**2.)).sum())
 del data, randoms
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
@@ -190,10 +187,6 @@ del nbar_mask
 
 # Cell volume
 v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
-
-# Apply renormalization factors
-nbar *= np.power(renorm3/(np.sum(nbar**3.)*v_cell),1./3.)
-nbar_weight *= np.power(renorm3/(np.sum(nbar_weight**3.)*v_cell),1./3.)
 
 ########################### GRID DEFINITIONS ###########################
 
