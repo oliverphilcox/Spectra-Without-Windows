@@ -9,7 +9,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift
+from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
 from covariances_pk import applyC_alpha, applyN
 
 # Read command line arguments
@@ -26,7 +26,7 @@ else:
 
 ## k-space binning
 k_min = 0.0
-k_max = 0.31
+k_max = 0.41
 dk = 0.005
 lmax = 4
 
@@ -46,7 +46,8 @@ if low_mem:
     import shutil
     from covariances_pk import applyC_alpha_single
 
-    tmpdir = '/tmp/ophilcox/pk_%s_%s_g%.1f_%s_%d/'%(patch,z_type,grid_factor,wtype,rand_it)
+    tmpdir = '/tmp/pkP2_%s_%s_g%.1f_%s_%d/'%(patch,z_type,grid_factor,wtype,rand_it)
+    #tmpdir = '/scratch/gpfs/ophilcox/pkP_%s_%s_g%.1f_%s_%d/'%(patch,z_type,grid_factor,wtype,rand_it)
 
     # Remove crud from a previous run
     if os.path.exists(tmpdir): shutil.rmtree(tmpdir)
@@ -54,7 +55,7 @@ if low_mem:
     if not os.path.exists(tmpdir): os.makedirs(tmpdir)
 
 # Directories
-outdir = '/projects/QUIJOTE/Oliver/boss_pkbk/' # to hold output Fisher matrices
+outdir = '/projects/QUIJOTE/Oliver/boss_pkbk_hr/' # to hold output Fisher matrices
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -176,6 +177,8 @@ nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
+k_grids /= (1e-12+k_norm)
+r_grids /= (1e-12+np.sqrt(np.sum(r_grids**2.,axis=0)))
 del density
 
 # Load MAS grids
@@ -201,7 +204,7 @@ nbar_weight *= np.sqrt(renorm2/(np.sum(nbar_weight**2.)*v_cell))
 ############################## GRID DEFINITIONS ################################
 
 # Compute spherical harmonic fields in real and Fourier-space
-Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
+Y_lms = compute_spherical_harmonic_functions(lmax)
 
 if wtype==1:
     # Load fit to Patchy P(k)
@@ -209,11 +212,9 @@ if wtype==1:
     fid_pk_interp = interp1d(pk_input[:,0],pk_input[:,1:].T)
     pk_map = fid_pk_interp(k_norm)[:lmax//2+1]
 
-del r_grids, k_grids
-
 # Compute k-space filters
-k_filters = compute_filters(k_min,k_max,dk,k_norm)
-n_k = len(k_filters)
+k_filters = compute_filters(k_min,k_max,dk)
+n_k = int((k_max-k_min)/dk)
 
 ### True inverse covariance
 def applyCinv_unif(input_map):
@@ -227,7 +228,7 @@ print("\n## Computing C^-1 of map assuming %s weightings"%weight_str)
 if wtype==0:
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
 
 Ainv_diff = applyCinv_unif(diff)
 del diff
@@ -235,83 +236,109 @@ del diff
 # Compute N A^-1 a
 N_Ainv_a = applyN(Ainv_diff,nbar,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 
-### Compute C_a C^-1 a
+### Compute C^-1 C_a C^-1 a and C_a A^-1 a
 if low_mem:
     n_bins = n_k*(lmax//2+1)
     print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_str)
     for alpha in range(n_bins):
-        this_C_a_Cinv_diff = applyC_alpha_single(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,alpha//n_k,alpha%n_k,include_pix=include_pix,data=False)
-        np.save(tmpdir+'C_a_Ci_%d.npy'%(alpha),this_C_a_Cinv_diff)
-        del this_C_a_Cinv_diff
-        this_C_a_Ainv_diff = applyC_alpha_single(Ainv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,alpha//n_k,alpha%n_k,include_pix=include_pix,data=False)
+        # Compute C_a A^-1 a
+        this_C_a_Ainv_diff = applyC_alpha_single(Ainv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,alpha//n_k,alpha%n_k,include_pix=include_pix,data=False)
         np.save(tmpdir+'C_a_Ai_%d.npy'%(alpha),this_C_a_Ainv_diff)
         del this_C_a_Ainv_diff
 else:
     print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_str)
-    C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,include_pix=include_pix,data=False)
-    C_a_Ainv_diff = applyC_alpha(Ainv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,include_pix=include_pix,data=False)
+    C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,n_k,lmax,include_pix=include_pix,data=False)
+    C_a_Ainv_diff = applyC_alpha(Ainv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,n_k,lmax,include_pix=include_pix,data=False)
 
-del Cinv_diff, Ainv_diff, nbar
-
-### Compute C^-1 C_a C^-1 a
-print("## Computing C^-1 C_a C^-1 of map assuming %s weightings"%weight_str)
-if not low_mem:
     n_bins = len(C_a_Cinv_diff)
 
-Cinv_C_a_Cinv_diff = []
-for alpha in range(n_bins):
-
-    if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
-
-    if low_mem:
-        if wtype==0:
-            tmp_map = applyCinv_fkp(np.load(tmpdir+'C_a_Ci_%d.npy'%alpha),nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
-        else:
-            tmp_map = applyCinv(np.load(tmpdir+'C_a_Ci_%d.npy'%alpha),nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix) # C^-1.x
-        np.save(tmpdir+'Ci_C_a_Ci_%d.npy'%alpha,tmp_map)
+    # Compute C^-1 of maps
+    print("## Computing C^-1 C_a C^-1 of map assuming %s weightings"%weight_str)
+    if wtype==0:
+        Cinv_C_a_Cinv_diff = [applyCinv_fkp(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix) for alpha in range(n_bins)]
     else:
-        if wtype==0:
-            tmp_map = applyCinv_fkp(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
-        else:
-            tmp_map = applyCinv(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix) # C^-1.x
-        Cinv_C_a_Cinv_diff.append(tmp_map)
-    del tmp_map
-del nbar_weight, MAS_mat, Yk_lm, Yr_lm
+        Cinv_C_a_Cinv_diff = [applyCinv(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix) for alpha in range(n_bins)]
+    del Cinv_diff, nbar, k_norm, nbar_weight, MAS_mat, Y_lms, k_grids, r_grids
 
-### Compute Fisher matrix
-fish = np.zeros((n_bins,n_bins))
+del Ainv_diff
 
-print("\n## Computing Fisher matrix")
+### Compute Fisher matrix and bias term, saving each element in turn
+print("\n## Computing Fisher and bias term")
+bias_file_name_a = lambda a: outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f_%d.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk,a)
+fish_file_name_ab = lambda a,b: outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f_%d_%d.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk,a,b)
+
 for alpha in range(n_bins):
-
     if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
 
+    # Check if this needs to be analyzed:
+    skip = True
+    for beta in range(n_bins):
+        if not os.path.exists(fish_file_name_ab(alpha,beta)): skip=False
+    if not os.path.exists(bias_file_name_a(alpha)): skip=False
+    if skip: continue
+
     if low_mem:
-        this_Cinv_C_a_Cinv_diff = np.load(tmpdir+'Ci_C_a_Ci_%d.npy'%alpha)
+        ### Compute C_a C^-1 a on the fly
+        tmp_map = applyC_alpha_single(Cinv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,alpha//n_k,alpha%n_k,include_pix=include_pix,data=False)
+
+        ### Compute C^-1 C_a C^-1 a on the fly
+        if wtype==0:
+            this_Cinv_C_a_Cinv_diff = applyCinv_fkp(tmp_map,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
+        else:
+            this_Cinv_C_a_Cinv_diff = applyCinv(tmp_map,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix) # C^-1.x
+        del tmp_map
     else:
         this_Cinv_C_a_Cinv_diff = Cinv_C_a_Cinv_diff[alpha]
+
+    # Compute bias term and save
+    np.save(bias_file_name_a(alpha),0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*N_Ainv_a)))
+    #q_bias[alpha] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*N_Ainv_a))
+
     for beta in range(n_bins):
+        if os.path.exists(fish_file_name_ab(alpha,beta)): continue
         if low_mem:
-            fish[alpha,beta] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*np.load(tmpdir+'C_a_Ai_%d.npy'%beta)))
+            this_fish = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*np.load(tmpdir+'C_a_Ai_%d.npy'%beta)))
         else:
-            fish[alpha,beta] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*C_a_Ainv_diff[beta]))
+            this_fish = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*C_a_Ainv_diff[beta]))
+        np.save(fish_file_name_ab(alpha,beta),this_fish)
+        del this_fish
     del this_Cinv_C_a_Cinv_diff
-if not low_mem:
-    del C_a_Ainv_diff
+
+if not low_mem: del C_a_Ainv_diff, Cinv_C_a_Cinv_diff
+del N_Ainv_a, Cinv_diff, nbar, k_norm, nbar_weight, MAS_mat, Y_lms, k_grids, r_grids
+
+# Compute all Fisher elements
+fish = np.zeros((n_bins,n_bins))
+q_bias = np.zeros(n_bins)
+
+print("Reconstructing bias and Fisher matrix from saved entries")
+exit = 0
+for alpha in range(n_bins):
+    try:
+        q_bias[alpha] = np.real(np.load(bias_file_name_a(alpha),allow_pickle=True))
+    except IOError:
+        os.remove(bias_file_name_a(alpha))
+        print("Bias %d not saved correctly!"%alpha)
+        exit += 1
+    for beta in range(n_bins):
+        try:
+	    fish[alpha,beta] = np.real(np.load(fish_file_name_ab(alpha,beta),allow_pickle=True))
+        except IOError:
+            os.remove(fish_file_name_ab(alpha,beta))
+            print("Fisher %d,%d not saved correctly!"%(alpha,beta))
+            exit += 1
+if exit>0:
+    print("\n%d fisher/bias elements not saved correctly!"%exit)
+    sys.exit()
+
+## Delete the temporary files
+for alpha in range(n_bins):
+    for beta in range(n_bins):
+        os.remove(fish_file_name_ab(alpha,beta))
+    os.remove(bias_file_name_a(alpha))
 
 ## Symmetrize matrix
 fish = 0.5*(fish+fish.T)
-
-### Compute bias term
-q_bias = np.zeros(n_bins)
-
-print("\n## Computing bias term")
-for alpha in range(n_bins):
-    if low_mem:
-        q_bias[alpha] = 0.5*np.real_if_close(np.sum(np.load(tmpdir+'Ci_C_a_Ci_%d.npy'%alpha)*N_Ainv_a))
-    else:
-        q_bias[alpha] = 0.5*np.real_if_close(np.sum(Cinv_C_a_Cinv_diff[alpha]*N_Ainv_a))
-del N_Ainv_a
 
 ############################### SAVE AND EXIT ##################################
 

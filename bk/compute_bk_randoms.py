@@ -10,7 +10,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift
+from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
 
 # Read command line arguments
 if len(sys.argv)!=6:
@@ -172,6 +172,8 @@ nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
+k_grids /= (1e-12+k_norm)
+r_grids /= (1e-12+np.sqrt(np.sum(r_grids**2.,axis=0)))
 del density
 
 # Load MAS grids
@@ -198,18 +200,18 @@ nbar_weight *= np.power(renorm3/(np.sum(nbar_weight**3.)*v_cell),1./3.)
 
 if wtype==1:
     # Compute spherical harmonic fields in real and Fourier-space
-    Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
+    Y_lms = compute_spherical_harmonic_functions(lmax)
 
     # Load fit to Patchy P(k)
     pk_input = np.loadtxt(pk_input_file)
     fid_pk_interp = interp1d(pk_input[:,0],pk_input[:,1:].T)
     pk_map = fid_pk_interp(k_norm)[:lmax//2+1]
-
-del r_grids, k_grids
+else:
+    del r_grids, k_grids
 
 # Compute k-space filters
-k_filters = compute_filters(k_min,k_max,dk,k_norm)
-n_k = len(k_filters)
+k_filters = compute_filters(k_min,k_max,dk)
+n_k = int((k_max-k_min)/dk)
 
 def test_bin(a,b,c,tol=1e-6):
     """Test bin to see if it satisfies triangle conditions, being careful of numerical overlaps."""
@@ -250,7 +252,7 @@ print("\n## Computing g-a maps assuming %s weightings"%weight_str)
 if wtype==0:
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
 
 Ainv_diff = applyCinv_unif(diff) # A^-1 a
 del diff
@@ -269,8 +271,8 @@ del Cinv_diff, Ainv_diff
 all_g_a = []
 all_tilde_g_a = []
 for i in range(n_k):
-    all_g_a.append(ift(k_filters[i]*ft_nCinv_a))
-    all_tilde_g_a.append(ift(k_filters[i]*ft_nAinv_a))
+    all_g_a.append(ift(k_filters(i,k_norm)*ft_nCinv_a))
+    all_tilde_g_a.append(ift(k_filters(i,k_norm)*ft_nAinv_a))
 
 del ft_nCinv_a, ft_nAinv_a
 
@@ -330,17 +332,17 @@ def compute_unsymmetrized_phi(a):
         for c in range(n_k):
             # Compute n(r) * IFT[Theta^c(k)FT[g^a[m]g^b[m]]], optionally with MAS corrections
             if include_pix:
-                phi_alpha = np.real_if_close(ift(ft(ift(k_filters[c]*ft_g_ab)*nbar)/MAS_mat)/v_cell)
+                phi_alpha = np.real_if_close(ift(ft(ift(k_filters(c,k_norm)*ft_g_ab)*nbar)/MAS_mat)/v_cell)
             else:
-                phi_alpha = np.real_if_close(ift(k_filters[c]*ft_g_ab)*nbar/v_cell)
+                phi_alpha = np.real_if_close(ift(k_filters(c,k_norm)*ft_g_ab)*nbar/v_cell)
             np.save(tmp_phi_alpha_file_name(a,b,c),phi_alpha)
             del phi_alpha
 
             # Repeat for A^-1 weighted field
             if include_pix:
-                tilde_phi_alpha = np.real_if_close(ift(ft(ift(k_filters[c]*ft_tg_ab)*nbar)/MAS_mat)/v_cell)
+                tilde_phi_alpha = np.real_if_close(ift(ft(ift(k_filters(c,k_norm)*ft_tg_ab)*nbar)/MAS_mat)/v_cell)
             else:
-                tilde_phi_alpha = np.real_if_close(ift(k_filters[c]*ft_tg_ab)*nbar/v_cell)
+                tilde_phi_alpha = np.real_if_close(ift(k_filters(c,k_norm)*ft_tg_ab)*nbar/v_cell)
             np.save(tmp_tilde_phi_alpha_file_name(a,b,c),tilde_phi_alpha)
             del tilde_phi_alpha
         del ft_g_ab, ft_tg_ab
@@ -350,7 +352,7 @@ for i in range(n_k):
     print("On primary k-bin %d of %d"%(i+1,n_k))
     compute_unsymmetrized_phi(i)
 
-del all_g_a, all_tilde_g_a
+del all_g_a, all_tilde_g_a, k_filters, k_norm
 
 ############## COMPUTE SYMMETRIZED phi_alpha AND C^-1 phi_alpha ################
 
@@ -407,7 +409,7 @@ def analyze_phi(index):
     if wtype==0:
         Cinv_phi_alpha = applyCinv_fkp(phi_alpha,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
     else:
-        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix)
+        Cinv_phi_alpha = applyCinv(phi_alpha,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=0,max_it=30,include_pix=include_pix)
     del phi_alpha
 
     ### 2c. Save to temporary disk
@@ -437,6 +439,9 @@ def analyze_phi(index):
 for i in range(n_bins):
     print("On index %d of %d"%(i+1,n_bins))
     analyze_phi(i)
+
+if wtype==1:
+    del k_grids, r_grids
 
 ###################### COMPUTE FISHER MATRIX CONTRIBUTION ######################
 

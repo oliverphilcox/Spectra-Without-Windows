@@ -5,4 +5,7 @@ figs/*
 bk/_*
 src/test*.py
 *test*.py
+*corr*.py
+*nseries*.py
 bk/compute_bk_win_data.py
+*nseries*.py

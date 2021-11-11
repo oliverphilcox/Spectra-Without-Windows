@@ -11,7 +11,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift
+from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
 from covariances_pk import applyC_alpha
 
 # Read command line arguments
@@ -29,7 +29,7 @@ else:
 
 ## k-space binning
 k_min = 0.0
-k_max = 0.31
+k_max = 0.41
 dk = 0.005
 lmax = 4
 
@@ -46,7 +46,7 @@ include_pix = False
 rand_nbar = False
 
 # Directories
-outdir = '/projects/QUIJOTE/Oliver/boss_pkbk/' # to hold output Fisher matrices and power spectra
+outdir = '/projects/QUIJOTE/Oliver/boss_pkbk_hr/' # to hold output Fisher matrices and power spectra
 
 if wtype==1:
     # Fiducial power spectrum input
@@ -184,6 +184,8 @@ nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
+k_grids /= (1e-12+k_norm)
+r_grids /= (1e-12+np.sqrt(np.sum(r_grids**2.,axis=0)))
 del density
 
 # Load MAS grids
@@ -208,8 +210,8 @@ nbar_weight *= np.sqrt(renorm2/(np.sum(nbar_weight**2.)*v_cell))
 
 ############################ GRID DEFINITIONS ##################################
 
-# Compute spherical harmonic fields in real and Fourier-space
-Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
+# Compute spherical harmonic functions
+Y_lms = compute_spherical_harmonic_functions(lmax)
 
 if wtype==1:
     # Load fit to Patchy P(k)
@@ -217,11 +219,9 @@ if wtype==1:
     fid_pk_interp = interp1d(pk_input[:,0],pk_input[:,1:].T)
     pk_map = fid_pk_interp(k_norm)[:lmax//2+1]
 
-del r_grids, k_grids
-
 # Compute k-space filters
-k_filters = compute_filters(k_min,k_max,dk,k_norm)
-n_k = len(k_filters)
+k_filters = compute_filters(k_min,k_max,dk)
+n_k = int((k_max-k_min)/dk)
 
 ################################# COMPUTE q_alpha ##############################
 
@@ -230,13 +230,13 @@ print("\n## Computing C-inverse of data and associated computations assuming %s 
 if wtype==0:
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix) # C^-1.x
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix) # C^-1.x
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix) # C^-1.x
     del pk_map
 del diff, nbar_weight
 
 ## Now compute C_a C^-1 d including MAS effects
-C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Yk_lm,Yr_lm,v_cell,k_filters,lmax,include_pix=include_pix,data=True)
-del nbar, MAS_mat, Yk_lm, Yr_lm
+C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,n_k,lmax,include_pix=include_pix,data=True)
+del nbar, MAS_mat, Y_lms,k_grids,r_grids, k_norm
 
 ## Compute q_alpha
 q_alpha = np.zeros(len(C_a_Cinv_diff))

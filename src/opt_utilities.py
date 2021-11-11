@@ -18,7 +18,33 @@ mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/' # location of nbar files, comp
 ########################### HANDLING DATA ###########################
 
 def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
-    """Load in BOSS/Patchy data with specified patch, z cut, and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only=True, we only return weights."""
+    """
+    Load in BOSS/Patchy data with specified patch, z cut, and cosmology.
+    
+    Parameters
+    ----------
+    sim_no : int
+        Simulation number. -1 gives BOSS, else Patchy is used
+    ZMIN : float
+        Minimum redshift
+    ZMAX : float
+        Maximum redshift
+    cosmo : Cosmology
+        Nbodykit Cosmology object
+    patch : str
+        Patch: 'ngc' or 'sgc'
+    fkp_weights : bool
+        Whether to add FKP weights (not usually needed)
+    P_fkp : float
+        FKP weight (default 1e4)
+    weight_only : bool
+        If true, return only the weights
+
+    Returns
+    -------
+    data : Catalog
+        Nbodykit catalog containing the data
+    """
     if sim_no==-1:
         # BOSS FITS File
         if patch=='ngc':
@@ -40,7 +66,7 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,wei
 
     valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
     data = data[valid]
-    
+
     if sim_no==-1:
         print("Loaded %d %s galaxies from BOSS\n"%(len(data),patch))
     else:
@@ -70,7 +96,32 @@ def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,wei
 
 
 def load_randoms(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
-    """Load in BOSS/Patchy randoms with specified patch, z cut, and cosmology. If sim_no==-1 we'll use BOSS, else Patchy. If weight_only we only return weights."""
+    """Load in BOSS/Patchy randoms with specified patch, z cut, and cosmology.
+    
+    Parameters
+    ----------
+        sim_no : int
+            Simulation number. -1 gives BOSS, else Patchy is used
+        ZMIN : float
+            Minimum redshift
+        ZMAX : float
+            Maximum redshift
+        cosmo : Cosmology
+            Nbodykit Cosmology object
+        patch : str
+            Patch: 'ngc' or 'sgc'
+        fkp_weights : bool
+            Whether to add FKP weights (not usually needed)
+        P_fkp : float
+            FKP weight (default 1e4)
+        weight_only : bool
+            If true, return only the weights
+
+    Returns
+    -------
+        randoms : Catalog
+            Nbodykit catalog containing the randoms
+    """
     if sim_no!=-1:
         if patch=='ngc':
             randfile = patchyN_data_dir+'Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
@@ -114,11 +165,33 @@ def load_randoms(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,
         randoms['WEIGHT_FKP'] = np.ones(len(randoms['NBAR']))
     return randoms
 
-def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran,z_only=False,hr=False):
+def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran):
     """Load the smooth n_bar field computed from the angular mask and n(z) function on the grid.
     This has no window effects since it does not involve particle samples.
-    It is normalized by the alpha factor = Sum (data weights) / Sum (random weights)."""
+    It is normalized by the alpha factor = Sum (data weights) / Sum (random weights).
+    
+    Parameters
+    ----------
+        sim_no : int
+            Simulation number. -1 gives BOSS, else Patchy is used
+        patch : str
+            Patch: 'ngc' or 'sgc'
+        z_type : str
+            Redshift bin: 'z1' or 'z3'
+        ZMIN : float
+            Minimum redshift
+        ZMAX : float
+            Maximum redshift
+        grid_factor : int
+            Factor by which to reduce the grid size
+        alpha_ran : float
+            Ratio of summed data weights to summed random weights. This is used to normalize the nbar field.
 
+    Returns
+    -------
+        nbar : ndarray
+            Array contining the 3D number density field
+    """
     if sim_no==-1:
         file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
     else:
@@ -133,8 +206,36 @@ def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=Tr
     """Given two nbodykit catalogs, paint the data and randoms to a single mesh, with a defined mass assignment scheme.
     Returns (data - random) and (optionally) random fields.
     Note that the random field is from *discrete* data here. Use load_nbar to get the continuous version!
-    Inputs: 3D boxsize, and 3D gridsize.
+    
+    Parameters
+    ----------
+        data : Catalog
+            Nbodykit catalog containing the data
+        randoms : Catalog
+            Nbodykit catalog containing the randoms
+        boxsize_grid : array
+            3-vector specifying the box dimensions
+        grid_3d : array
+            3-vector specifying the grid dimensions
+        MAS : str
+            Mass assignment scheme: 'TSC' or 'CIC'
+        return_randoms : bool
+            If true, return also the discretized random map
+        return_norm : bool
+            If true, return also the normalization factor
+
+    Returns
+    -------
+        diff : ndarray
+            3D map of the difference between data and randoms
+        density : ndarray
+            Nbodykit map containing useful attributes
+        rand : ndarray (optional)
+            3D map of the random field
+        norm : float (optional)
+            Normalization factor
     """
+    
     # combine the data and randoms into a single catalog
     fkp = FKPCatalog(data, randoms,BoxSize=boxsize_grid,nbar='NBAR')
 
@@ -196,9 +297,26 @@ def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=Tr
             return diff, density
 
 def grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC'):
-    """Given a single unwindonwed catalog, paint to a grid. Output is an overdensity field.
+    """Given a single unwindowed catalog, paint to a grid. Output is an overdensity field.
     Note that the random field is from *discrete* data here. Use load_nbar to get the continuous version!
-    Inputs: data, nuber density (scalar), boxsize, N_grid.
+    
+    Parameters
+    ----------
+        data : Catalog
+            Nbodykit catalog containing the data
+        nbar_unif : ndarray
+            Uniform number density field
+        boxsize_grid : array
+            3-vector specifying the box dimensions
+        grid_3d : array
+            3-vector specifying the grid dimensions
+        MAS : str
+            Mass assignment scheme: 'TSC' or 'CIC'
+
+    Returns
+    -------
+        diff : ndarray
+            3D map of the difference between data and randoms
     """
     # combine the data and randoms into a single catalog
     assert MAS=='TSC'
@@ -223,88 +341,102 @@ def grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC'):
 
 ########################### COORDINATES AND MAPS ###########################
 
-def compute_spherical_harmonics(lmax,kgrids,rgrids):
+def compute_spherical_harmonic_functions(lmax):
     """Compute array of valid spherical harmonic functions.
+    
+    Parameters
+    ----------
+        lmax : int
+            Maximum spherical harmonic degree
 
-    Returns [Fourier-space array], [Real-space array] for all even ell <= lmax and all m."""
-    # Load co-ordinate grids
-    k3x,k3y,k3z = kgrids
-    r3x,r3y,r3z = rgrids
-    k3D = np.sqrt(k3x**2.+k3y**2.+k3z**2.)
-    r3D = np.sqrt(r3x**2.+r3y**2.+r3z**2.)
-
-    def compute_Ylm(x,y,z,lmax):
-        """Compute Y_lm(\hat{r}) for ell = 0, 2
-        x,y,z are normalized direction vectors.
-
-        NB: Using Cartesian definitions from Wikipedia
+    Returns
+    -------
+        spherical_harmonics : list
+            List of functions that generate real spherical harmonics for all even ell <= lmax and all m.
+   
+    """
+    def get_real_Ylm(l, m):
         """
-        def get_real_Ylm(l, m):
-            """
-            Return a function that computes the real spherical harmonic of order (l,m). Taken from nbodykit
-            """
+        Return a function that computes the real spherical harmonic of order (l,m). Taken from nbodykit.
 
-            # make sure l,m are integers
-            l = int(l); m = int(m)
+        Parameters
+        ----------
+            l : int
+                Spherical harmonic degree
+            m : int
+                Spherical harmonic order
 
-            # the relevant cartesian and spherical symbols
-            x, y, z, r = sp.symbols('x y z r', real=True, positive=True)
-            xhat, yhat, zhat = sp.symbols('xhat yhat zhat', real=True, positive=True)
-            phi, theta = sp.symbols('phi theta')
-            defs = [(sp.sin(phi), y/sp.sqrt(x**2+y**2)),
-                    (sp.cos(phi), x/sp.sqrt(x**2+y**2)),
-                    (sp.cos(theta), z/sp.sqrt(x**2 + y**2+z**2))]
+        Returns
+        -------
+            Ylm : function
+                Function that computes the real spherical harmonic of order (l,m)
+        """
 
-            # the normalization factors
-            if m == 0:
-                amp = sp.sqrt((2*l+1) / (4*numpy.pi))
-            else:
-                amp = sp.sqrt(2*(2*l+1) / (4*numpy.pi) * sp.factorial(l-abs(m)) / sp.factorial(l+abs(m)))
+        # make sure l,m are integers
+        l = int(l); m = int(m)
 
-            # the cos(theta) dependence encoded by the associated Legendre poly
-            expr = (-1)**m * sp.assoc_legendre(l, abs(m), sp.cos(theta))
+        # the relevant cartesian and spherical symbols
+        x, y, z, r = sp.symbols('x y z r', real=True, positive=True)
+        xhat, yhat, zhat = sp.symbols('xhat yhat zhat', real=True, positive=True)
+        phi, theta = sp.symbols('phi theta')
+        defs = [(sp.sin(phi), y/sp.sqrt(x**2+y**2)),
+                (sp.cos(phi), x/sp.sqrt(x**2+y**2)),
+                (sp.cos(theta), z/sp.sqrt(x**2 + y**2+z**2))]
 
-            # the phi dependence
-            if m < 0:
-                expr *= sp.expand_trig(sp.sin(abs(m)*phi))
-            elif m > 0:
-                expr *= sp.expand_trig(sp.cos(m*phi))
+        # the normalization factors
+        if m == 0:
+            amp = sp.sqrt((2*l+1) / (4*numpy.pi))
+        else:
+            amp = sp.sqrt(2*(2*l+1) / (4*numpy.pi) * sp.factorial(l-abs(m)) / sp.factorial(l+abs(m)))
 
-            # simplify
-            expr = sp.together(expr.subs(defs)).subs(x**2 + y**2 + z**2, r**2)
-            expr = amp * expr.expand().subs([(x/r, xhat), (y/r, yhat), (z/r, zhat)])
-            Ylm = sp.lambdify((xhat,yhat,zhat), expr, 'numexpr')
+        # the cos(theta) dependence encoded by the associated Legendre poly
+        expr = (-1)**m * sp.assoc_legendre(l, abs(m), sp.cos(theta))
 
-            # attach some meta-data
-            Ylm.expr = expr
-            Ylm.l    = l
-            Ylm.m    = m
+        # the phi dependence
+        if m < 0:
+            expr *= sp.expand_trig(sp.sin(abs(m)*phi))
+        elif m > 0:
+            expr *= sp.expand_trig(sp.cos(m*phi))
 
-            return Ylm
+        # simplify
+        expr = sp.together(expr.subs(defs)).subs(x**2 + y**2 + z**2, r**2)
+        expr = amp * expr.expand().subs([(x/r, xhat), (y/r, yhat), (z/r, zhat)])
+        Ylm = sp.lambdify((xhat,yhat,zhat), expr, 'numexpr')
 
-        Y_lm_out = []
-        for l in np.arange(0,lmax+1,2):
-            Y_m_out = []
-            for m in np.arange(-l,l+1,1):
-                Y_m_out.append(0.*x+get_real_Ylm(l,m)(x,y,z))
-            Y_lm_out.append(np.asarray(Y_m_out))
-        return Y_lm_out
+        # attach some meta-data
+        Ylm.expr = expr
+        Ylm.l    = l
+        Ylm.m    = m
 
-    def vechat(k,k_norm):
-        """Compute k_i / |k| being careful of the |k| = 0 case"""
-        khat = np.zeros_like(k)
-        filt = k_norm!=0.
-        khat[filt] = k[filt]/k_norm[filt]
-        return khat
+        return Ylm
 
-    # Compute spherical harmonics
-    Yk_lm_3D = compute_Ylm(vechat(k3x,k3D),vechat(k3y,k3D),vechat(k3z,k3D),lmax=lmax)
-    Y_lm_grid = compute_Ylm(vechat(r3x,r3D),vechat(r3y,r3D),vechat(r3z,r3D),lmax=lmax)
-
-    return Yk_lm_3D, Y_lm_grid
+    Y_lm_out = []
+    for l in np.arange(0,lmax+1,2):
+        Y_m_out = []
+        for m in np.arange(-l,l+1,1):
+            Y_m_out.append(get_real_Ylm(l,m))
+        Y_lm_out.append(np.asarray(Y_m_out))
+    return Y_lm_out
 
 def load_coord_grids(boxsize_grid, grid_3d, density):
-    """Load Fourier- and real-space co-ordinate grids"""
+    """Load Fourier- and real-space co-ordinate grids
+    
+    Parameters
+    ----------
+        boxsize_grid : array
+            3-vector specifying the box dimensions
+        grid_3d : array
+            3-vector specifying the grid dimensions
+        density : Nbodykit map  
+            Density field from nbodykit
+
+    Returns
+    -------
+        k_grid : ndarray
+            Fourier-space co-ordinate grid (kx, ky, kz)
+        r_grid : ndarray
+            Real-space co-ordinate grid (x, y, z)
+    """
     # Fourier-space coordinate grid
     kF = 2.*np.pi/(1.*boxsize_grid)
     middle_3d = np.asarray(grid_3d)/2
@@ -320,7 +452,20 @@ def load_coord_grids(boxsize_grid, grid_3d, density):
     return np.asarray([k3x,k3y,k3z]),np.asarray([r3x,r3y,r3z])
 
 def load_MAS(boxsize_grid, grid_3d):
-    """Load the mass-assignment scheme (aka compensation) matrix"""
+    """Load the mass-assignment scheme (aka compensation) matrix.
+    
+    Parameters
+    ----------
+        boxsize_grid : array
+            3-vector specifying the box dimensions
+        grid_3d : array
+            3-vector specifying the grid dimensions
+
+    Returns
+    -------
+        MAS : ndarray
+            Mass assignmment scheme matrix
+    """
     kF = 2.*np.pi/(1.*boxsize_grid)
     middle_3d = np.asarray(grid_3d)/2
     kx, ky, kz = [np.asarray([kkk-grid_3d[i] if kkk>=middle_3d[i] else kkk for kkk in np.arange(grid_3d[i])])*kF[i] for i in range(3)]
@@ -340,22 +485,46 @@ def load_MAS(boxsize_grid, grid_3d):
     MAS_mat = np.meshgrid(MAS_arry,MAS_arrx,MAS_arrz)
     return MAS_mat[1]*MAS_mat[0]*MAS_mat[2]
 
-def compute_filters(kmin,kmax,dk,k_norm):
-    """Load k-space filters, picking out k in [k_i-dk/2,k_i+dk/2] for each bin"""
+def compute_filters(kmin,kmax,dk):
+    """Load k-space filters, picking out k in [k_i-dk/2,k_i+dk/2] for each bin.
+    
+    Parameters
+        ----------
+        kmin : float
+            Minimum k-value
+        kmax : float
+            Maximum k-value
+        dk : float
+            Width of each k-bin
+
+    Returns
+    -------
+        filters : ndarray
+            3-vector of boolean k-space filters
+    """
     # define k-binning
     k_all = np.arange(kmin,kmax+dk,dk)
     k_lo = k_all[:-1]
     k_hi = k_all[1:]
-    all_filt = []
-    for i in range(len(k_lo)):
-        all_filt.append(np.logical_and(k_norm>=k_lo[i],k_norm<k_hi[i]))
-    return all_filt
+    return lambda i, k_norm: np.logical_and(k_norm>=k_lo[i],k_norm<k_hi[i])
 
 ########################### FOURIER TRANSFORMS ###########################
 
 def ft(pix, threads=4):
-    """This function performs the 3D FFT of a field in single precision"""
+    """This function performs the 3D FFT of a field in single precision using pyfftw.
+    
+        Parameters
+    ----------
+        pix : ndarray
+            3D field to transform
+        threads : int
+            Number of threads to use (default=4)
 
+    Returns
+    -------
+        pix_ft : ndarray
+            Fourier transform of pix
+    """
     # align arrays
     grid_3d = pix.shape
     a_in  = pyfftw.empty_aligned(grid_3d,dtype='complex64')
@@ -370,8 +539,20 @@ def ft(pix, threads=4):
     a_in [:] = pix;  fftw_plan(a_in,a_out);  return a_out
 
 def ift(pix, threads=4):
-    """This function performs the 3D inverse FFT of a field in single precision.
-    Note that it returns a real field."""
+    """This function performs the 3D inverse FFT of a field in single precision using pyfftw.
+    
+    Parameters
+    ----------
+        pix : ndarray
+            3D field to transform
+        threads : int
+            Number of threads to use (default=4)
+
+    Returns
+    -------
+        pix_ifft : ndarray
+            Inverse Fourier transform of pix
+    """
     grid_3d = pix.shape
     a_in  = pyfftw.empty_aligned(grid_3d,dtype='complex64')
     a_out = pyfftw.empty_aligned(grid_3d,dtype='complex64')
@@ -387,7 +568,22 @@ def ift(pix, threads=4):
 ########################### PLOTTING ###########################
 
 def plotter(mat,axis=2,shift=1,v1=None,v2=None):
-    """General purpose function for plotting a 3D density field, averaging over one dimension."""
+    """General purpose function for plotting a 3D density field, averaging over one dimension.
+    
+        Parameters
+    ----------
+        mat : ndarray
+            3D density field to be plotted
+        axis : int
+            Axis to average over (default=2)
+        shift : bool
+            Whether to apply an FFTshift operation (default=True)
+        v1 : float
+            Minimum value to plot (default=None)
+        v2 : float
+            Maximum value to plot (default=None)
+
+    """
     plt.figure()
     if shift:
         plot_mat = np.fft.fftshift(mat)

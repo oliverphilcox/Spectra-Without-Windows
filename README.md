@@ -1,10 +1,10 @@
 # BOSS Without Windows
 
-This repository contains details of the window-free analysis of BOSS DR12 data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287).
+This repository contains details of the window-free analysis of BOSS DR12 data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287), and contains the data used in the BOSS power spectrum and bispectrum analysis of Philcox & Ivanov (in prep.).
 
 ## Outline
-- [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS and 999 Patchy simulations.
-- [bk/](bk): Analysis code to estimate unwindowed bispectra. We additionally supply the raw bispectrum measurements of BOSS and 999 Patchy simulations.
+- [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS, 2048 Patchy simulations and 84 Nseries simulations.
+- [bk/](bk): Analysis code to estimate unwindowed bispectra. We additionally supply the raw bispectrum measurements of BOSS and 2048 Patchy simulations and 84 Nseries simulations.
 - [src/](src): Various Python utilities used in the unwindowed estimators.
 - [generate_mask.py](generate_mask.py): Utility function to generate the background number density, n(r) from the survey mask and n(z) distribution. This is described in the code header.
 
@@ -29,5 +29,6 @@ We additionally use a number of the BOSS data products available on the BOSS [SA
 ### Publications
 Codes and data from this repository are used in the following publications:
 
-- Philcox (2020, [Phys Rev. D](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.103.103504), [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
-- Philcox (2021, submitted to Phys. Rev. D, [arXiv](https://arxiv.org/abs/2107.06287)): Description of the unwindowed bispectrum estimators.
+- Philcox (2020, [Phys. Rev. D](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.103.103504), [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
+- Philcox (2021, accepted by Phys. Rev. D, [arXiv](https://arxiv.org/abs/2107.06287)): Description of the unwindowed bispectrum estimators.
+- Philcox & Ivanov (in prep.): Combined constraints on LambdaCDM from the BOSS power spectrum and bispectrum.

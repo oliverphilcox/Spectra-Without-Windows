@@ -11,7 +11,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonics, compute_filters, ft, ift, plotter
+from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift, plotter
 
 # Read command line arguments
 if len(sys.argv)!=6:
@@ -172,6 +172,8 @@ nbar_mask = load_nbar(sim_no, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
 k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
+k_grids /= (1e-12+k_norm)
+r_grids /= (1e-12+np.sqrt(np.sum(r_grids**2.,axis=0)))
 del density
 
 # Load MAS grids
@@ -197,18 +199,18 @@ nbar_weight *= np.power(renorm3/(np.sum(nbar_weight**3.)*v_cell),1./3.)
 
 if wtype==1:
     # Compute spherical harmonic fields in real and Fourier-space
-    Yk_lm, Yr_lm = compute_spherical_harmonics(lmax,k_grids,r_grids)
+    Y_lms = compute_spherical_harmonic_functions(lmax)
 
     # Load fit to Patchy P(k)
     pk_input = np.loadtxt(pk_input_file)
     fid_pk_interp = interp1d(pk_input[:,0],pk_input[:,1:].T)
     pk_map = fid_pk_interp(k_norm)
-
-del r_grids, k_grids
+else:
+    del r_grids, k_grids
 
 # Compute k-space filters
-k_filters = compute_filters(k_min,k_max,dk,k_norm)
-n_k = len(k_filters)
+k_filters = compute_filters(k_min,k_max,dk)
+n_k = int((k_max-k_min)/dk)
 
 def test_bin(a,b,c,tol=1e-6):
     """Test bin to see if it satisfies triangle conditions, being careful of numerical overlaps."""
@@ -245,8 +247,8 @@ print("\n## Computing g-a maps assuming %s weightings"%weight_str)
 if wtype==0:
     Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Yk_lm,Yr_lm,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
-    del pk_map, Yk_lm, Yr_lm
+    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
+    del pk_map, Y_lms, k_grids, r_grids
 del diff, nbar_weight
 
 # Now compute FT[nC^-1d], optionally including MAS matrix operations
@@ -260,8 +262,8 @@ del Cinv_diff, nbar, MAS_mat
 ## Compute g^a functions
 all_g_a = []
 for i in range(n_k):
-    all_g_a.append(ift(k_filters[i]*ft_nCinv_d))
-del ft_nCinv_d, k_filters
+    all_g_a.append(ift(k_filters(i,k_norm)*ft_nCinv_d))
+del ft_nCinv_d, k_filters, k_norm
 
 ########################### COMPUTE q_alpha ###########################
 
