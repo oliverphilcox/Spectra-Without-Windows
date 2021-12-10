@@ -1,6 +1,6 @@
 # BOSS Without Windows
 
-This repository contains details of the window-free analysis of BOSS DR12 data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287), and contains the data used in the BOSS power spectrum and bispectrum analysis of Philcox & Ivanov (in prep.).
+This repository contains details of the window-free analysis of BOSS DR12 data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287), and contains the data used in the BOSS power spectrum and bispectrum analysis of [Philcox & Ivanov 2022] (http://arxiv.org/abs/2112.04515).
 
 ## Outline
 - [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS, 2048 Patchy simulations and 84 Nseries simulations.
