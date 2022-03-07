@@ -30,5 +30,5 @@ We additionally use a number of the BOSS data products available on the BOSS [SA
 Codes and data from this repository are used in the following publications:
 
 - Philcox (2020, [Phys. Rev. D](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.103.103504), [arXiv](https://arxiv.org/abs/2012.09389)): Description of the unwindowed power spectrum estimators.
-- Philcox (2021, accepted by Phys. Rev. D, [arXiv](https://arxiv.org/abs/2107.06287)): Description of the unwindowed bispectrum estimators.
-- Philcox & Ivanov  (2022, submitted to Phys. Rev. D, [arXiv](http://arxiv.org/abs/2112.04515)): Combined constraints on LambdaCDM from the BOSS power spectrum and bispectrum.
+- Philcox (2021, [Phys. Rev. D](https://doi.org/10.1103/PhysRevD.104.123529), [arXiv](https://arxiv.org/abs/2107.06287)): Description of the unwindowed bispectrum estimators.
+- Philcox & Ivanov  (2022, [Phys. Rev. D](https://doi.org/10.1103/PhysRevD.105.043517), [arXiv](http://arxiv.org/abs/2112.04515)): Combined constraints on LambdaCDM from the BOSS power spectrum and bispectrum.
