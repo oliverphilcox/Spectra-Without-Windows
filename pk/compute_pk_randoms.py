@@ -1,167 +1,146 @@
 # compute_pk_randoms.py (Oliver Philcox, 2021)
-### Compute the power spectrum of BOSS or Patchy data with FKP or ML weightings
+### Compute the power spectrum of survey data with FKP or ML weightings
 ### This computes the q-bar and F_ab terms from uniformly distributed randoms (independent of the survey geometry)
+### All input parameters (specifying the mask, k-cuts etc.) are specified in a given .param file
 
 # Import modules
 from nbodykit.lab import *
-import sys, os, copy, time, pyfftw
-import numpy as np
+import numpy as np, sys, os, time, configparser, shutil
 from scipy.interpolate import interp1d
 # custom definitions
-sys.path.append('../src')
-from opt_utilities import load_data, load_randoms, load_MAS, load_nbar, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/../src')
+from opt_utilities import load_data, load_randoms, load_nbar, load_MAS, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
 from covariances_pk import applyC_alpha, applyN
 
 # Read command line arguments
-if len(sys.argv)!=6:
-    raise Exception("Need to specify random iteration, patch, z-type, weight-type and grid factor!")
+if len(sys.argv)!=3:
+    raise Exception("Need to specify random iteration and parameter file!")
 else:
     rand_it = int(sys.argv[1]) # which random catalog
-    patch = str(sys.argv[2]) # ngc or sgc
-    z_type = str(sys.argv[3]) # z1 or z3
-    wtype = int(sys.argv[4]) # 0 for FKP, 1 for ML
-    grid_factor = float(sys.argv[5])
+    paramfile = str(sys.argv[2]) # ngc or sgc
 
 ################################ INPUT PARAMETERS ##############################
 
-## k-space binning
-k_min = 0.0
-k_max = 0.41
-dk = 0.005
-lmax = 4
+# Load input file, and read in a few crucial parameters
+config = configparser.ConfigParser(interpolation=None,converters={'list': lambda x: [i.strip() for i in x.split(',')]})
+if not os.path.exists(paramfile):
+    raise Exception("Parameter file does not exist!")
+config.read(paramfile)
 
-## Cosmological parameters for co-ordinate conversions
-h_fid = 0.676
-OmegaM_fid = 0.31
+string = config['sample']['type']
 
-# Whether to forward-model pixellation effects.
-include_pix = False
-# If true, use nbar(r) from the random particles instead of the mask / n(z) distribution.
-rand_nbar = False
+# Define weight type and sample name
+weight_type = str(config['settings']['weights'])
+if weight_type=='FKP':
+    wtype = 0
+    from covariances_pk import applyCinv_fkp
+elif weight_type=='ML':
+    wtype = 1
+    from covariances_pk import applyCinv
+else:
+    raise Exception("weights must be 'FKP' or 'ML'")
 
-# Save and reload files if memory usage is a concern
-low_mem = True
+# Binning parameters
+k_min, k_max, dk = float(config['pk-binning']['k_min']),float(config['pk-binning']['k_max']),float(config['pk-binning']['dk'])
+assert k_max>k_min
+assert dk>0
+assert k_min>=0
+lmax = int(config['pk-binning']['lmax'])
+assert (lmax//2)*2==lmax, "l-max must be even!"
+
+## Directories
+outdir =  str(config['directories']['output'])
+
+# Redshifts
+ZMIN, ZMAX = float(config['sample']['z_min']), float(config['sample']['z_max'])
+
+# Fiducial cosmological parameters
+h_fid, OmegaM_fid = float(config['parameters']['h_fid']), float(config['parameters']['OmegaM_fid'])
+
+# Survey dimensions
+boxsize_grid = np.array(config.getlist('sample','box'),dtype=float)
+grid_3d = np.array(config.getlist('pk-binning','grid'),dtype=int)
+
+# Number of MC simulations
+N_mc = int(config['settings']['N_mc'])
+if rand_it>N_mc: raise Exception("Simulation number cannot be greater than number of bias sims!")
+
+if wtype==1:
+    # Fiducial power spectrum input (for ML weights)
+    pk_input_file = str(config['settings']['fiducial_pk'])
+
+# Testing parameters
+include_pix, rand_nbar, low_mem = config.getboolean('settings','include_pix'), config.getboolean('settings','rand_nbar'), config.getboolean('settings','low_mem')
 
 if low_mem:
-    import shutil
     from covariances_pk import applyC_alpha_single
-
-    tmpdir = '/tmp/pkP2_%s_%s_g%.1f_%s_%d/'%(patch,z_type,grid_factor,wtype,rand_it)
-    #tmpdir = '/scratch/gpfs/ophilcox/pkP_%s_%s_g%.1f_%s_%d/'%(patch,z_type,grid_factor,wtype,rand_it)
+    tmpdir = str(config['directories']['temporary'])+str('%d/'%(rand_it))
 
     # Remove crud from a previous run
     if os.path.exists(tmpdir): shutil.rmtree(tmpdir)
     # Create directory
     if not os.path.exists(tmpdir): os.makedirs(tmpdir)
 
-# Directories
-outdir = '/projects/QUIJOTE/Oliver/boss_pkbk_hr/' # to hold output Fisher matrices
-
-if wtype==1:
-    # Fiducial power spectrum input
-    pk_input_file = '/projects/QUIJOTE/Oliver/bk_opt/patchy_%s_%s_pk_fid_k_0.00_0.30.txt'%(patch,z_type)
-
-#### In principle, nothing below here needs to be altered for BOSS
-
-# Redshifts
-if z_type=='z1':
-    ZMIN = 0.2
-    ZMAX = 0.5
-    z = 0.38
-elif z_type=='z3':
-    ZMIN = 0.5
-    ZMAX  = 0.75
-    z = 0.61
-else:
-    raise Exception("Wrong z-type")
-
-# Load survey dimensions
-if z_type=='z1' and patch=='ngc':
-    boxsize_grid = np.array([1350,2450,1400])
-    grid_3d = np.asarray(np.asarray([252.,460.,260.])/grid_factor,dtype=int)
-elif z_type=='z1' and patch=='sgc':
-    boxsize_grid = np.array([1000,1900,1100])
-    grid_3d = np.asarray(np.asarray([190.,360.,210.])/grid_factor,dtype=int)
-elif z_type=='z3' and patch=='ngc':
-    boxsize_grid = np.array([1800,3400,1900])
-    grid_3d = np.asarray(np.asarray([340.,650.,360.])/grid_factor,dtype=int)
-elif z_type=='z3' and patch=='sgc':
-    boxsize_grid = np.array([1000,2600,1500])
-    grid_3d = np.asarray(np.asarray([190.,500.,280.])/grid_factor,dtype=int)
-else:
-    raise Exception("Wrong z-type / patch")
-
 # Create directories
 if not os.path.exists(outdir): os.makedirs(outdir)
 
-# Covariance matrix parameters
-if wtype==0:
-    weight_str = 'fkp'
-    from covariances_pk import applyCinv_fkp
-elif wtype==1:
-    weight_str = 'ml'
-    from covariances_pk import applyCinv
-else:
-    raise Exception("Incorrect weight type!")
-
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
+print("Data-type: %s"%string)
 print("Random iteration: %d"%rand_it)
-print("Grid-Factor: %.1f"%grid_factor)
-print("Weight-Type: %s"%weight_str)
-print("\nPatch: %s"%patch)
-print("Redshift-type: %s"%z_type)
+print("Weight-Type: %s"%weight_type)
 if rand_nbar:
-    print("n-bar: from randoms (Patchy)")
+    print("n-bar: from randoms")
 else:
-    print("n-bar: from mask (Patchy)")
+    print("n-bar: from mask")
 print("Forward model pixellation: %d"%include_pix)
 print("\nk-min: %.3f"%k_min)
 print("k-max: %.3f"%k_max)
 print("dk: %.3f"%dk)
+print("l-max: %d"%lmax)
 print("\nFiducial h = %.3f"%h_fid)
 print("Fiducial Omega_m = %.3f"%OmegaM_fid)
 print("\nOutput Directory: %s"%outdir)
+if low_mem:
+    print("\nTemporary Directory: %s"%tmpdir)
 print("\n########################################################")
 
 init = time.time()
 
 ################################# LOAD DATA ####################################
 
-print("\n## Analyzing random iteration %d for %s %s with %s weights and grid-factor %.1f"%(rand_it,patch,z_type,weight_str,grid_factor))
-
 # First check that the simulation hasn't already been analyzed
-bias_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
-fish_file_name = outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk)
+bias_file_name = outdir+'%s%d_%s_pk_q-bar_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
+fish_file_name = outdir+'%s%d_%s_pk_fish_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
 
 if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
-    print("Output already exists; exiting!\n")
+    print("Simulation already completed; exiting!\n")
     sys.exit()
+
+print("\n## Loading %s random iteration %d with %s weights"%(string,rand_it,weight_type))
 
 ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
 cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
 
-# Load a uniform random sample for data
-nbar_unif = 1e-3
-data = UniformCatalog(nbar_unif,boxsize_grid,seed=rand_it)
-print("Created %d uniform randoms"%len(data))
+# Generate nbar field (same density as no. randoms), filling in zeros to allow for MAS bleed
+nbar_A = load_nbar(config, 'pk', 1.)
+nbar_A[nbar_A==0] = min(nbar_A[nbar_A!=0])*0.01
 
-# Assign to a grid
-diff = grid_uniforms(data, nbar_unif, boxsize_grid, grid_3d, MAS='TSC')
-shot_fac_unif = 1.
-del data
+# Gaussian sample to create random field
+np.random.seed(rand_it)
+diff = np.random.normal(loc=0.,scale=np.sqrt(nbar_A),size=nbar_A.shape)
 
 # Compute alpha for nbar rescaling
-data_true = load_data(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-rand_true = load_randoms(1,ZMIN,ZMAX,cosmo_coord,patch=patch,fkp_weights=False)
-alpha_ran = (np.sum(data_true['WEIGHT'])/np.sum(rand_true['WEIGHT'])).compute()
-shot_fac = (np.mean(data_true['WEIGHT']**2.).compute()+alpha_ran*np.mean(rand_true['WEIGHT']**2.).compute())/np.mean(rand_true['WEIGHT']).compute()
-norm = 1./np.asarray(alpha_ran*np.sum(rand_true['NBAR']*rand_true['WEIGHT']*rand_true['WEIGHT_FKP']**2.))
-print("Data: alpha_ran = %.3f, shot_factor: %.3f"%(alpha_ran,shot_fac))
+print("\nLoading data")
+data_true = load_data(1,config,cosmo_coord,fkp_weights=False)
+rand_true = load_randoms(config,cosmo_coord,fkp_weights=False)
+alpha_ran = (data_true['WEIGHT'].sum()/rand_true['WEIGHT'].sum()).compute()
+shot_fac = ((data_true['WEIGHT']**2.).mean().compute()+alpha_ran*(rand_true['WEIGHT']**2.).mean().compute())/rand_true['WEIGHT'].mean().compute()
+print("Data-to-random ratio: %.3f, shot-noise factor: %.3f"%(alpha_ran,shot_fac))
 
 if rand_nbar:
     print("Loading nbar from random particles")
-    nbar_rand, density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=True,return_norm=False)[1:]
+    nbar_rand, density = grid_data(data_true, rand_true, boxsize_grid, grid_3d, MAS='TSC', return_randoms=True, return_norm=False)[1:]
 else:
     # load density mesh (used to define coordinate arrays)
     density = grid_data(data_true, rand_true, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)[1]
@@ -169,7 +148,7 @@ del rand_true, data_true
 
 # Load pre-computed n(r) map (from mask and n(z), not discrete particles)
 print("Loading nbar from mask")
-nbar_mask = load_nbar(1, patch, z_type, ZMIN, ZMAX, grid_factor, alpha_ran)
+nbar_mask = load_nbar(config, 'pk', alpha_ran)
 
 # Load grids in real and Fourier space
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
@@ -199,7 +178,7 @@ v_cell = 1.*boxsize_grid.prod()/(1.*grid_3d.prod())
 Y_lms = compute_spherical_harmonic_functions(lmax)
 
 if wtype==1:
-    # Load fit to Patchy P(k)
+    # Load fit to input P(k)
     pk_input = np.loadtxt(pk_input_file)
     fid_pk_interp = interp1d(pk_input[:,0],pk_input[:,1:].T)
     pk_map = fid_pk_interp(k_norm)[:lmax//2+1]
@@ -209,20 +188,20 @@ k_filters = compute_filters(k_min,k_max,dk)
 n_k = int((k_max-k_min)/dk)
 
 ### True inverse covariance
-def applyCinv_unif(input_map):
-    """Apply true C^{-1} to the uniform map including MAS effects."""
-    return ift(ft(input_map)*MAS_mat**2)/nbar_unif*v_cell/shot_fac_unif
+def applyAinv(input_map):
+    """Apply true A^{-1} to the input map (no MAS effects needed!)."""
+    return input_map/nbar_A
 
 ######################### COMPUTE FISHER + BIAS ################################
 
 ## Compute C^-1 a and A^-1 a for random map a
-print("\n## Computing C^-1 of map assuming %s weightings"%weight_str)
+print("\n## Computing C^-1 of map assuming %s weightings"%weight_type)
 if wtype==0:
-    Cinv_diff = applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix)
+    Cinv_diff = np.real(applyCinv_fkp(diff,nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix))
 else:
-    Cinv_diff = applyCinv(diff,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix)
+    Cinv_diff = np.real(applyCinv(diff,nbar_weight,MAS_mat,pk_map,Y_lms,k_grids,r_grids,v_cell,shot_fac,rel_tol=1e-6,verb=1,max_it=30,include_pix=include_pix))
 
-Ainv_diff = applyCinv_unif(diff)
+Ainv_diff = applyAinv(diff)
 del diff
 
 # Compute N A^-1 a
@@ -231,21 +210,21 @@ N_Ainv_a = applyN(Ainv_diff,nbar,MAS_mat,v_cell,shot_fac,include_pix=include_pix
 ### Compute C^-1 C_a C^-1 a and C_a A^-1 a
 if low_mem:
     n_bins = n_k*(lmax//2+1)
-    print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_str)
+    print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_type)
     for alpha in range(n_bins):
         # Compute C_a A^-1 a
         this_C_a_Ainv_diff = applyC_alpha_single(Ainv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,alpha//n_k,alpha%n_k,include_pix=include_pix,data=False)
         np.save(tmpdir+'C_a_Ai_%d.npy'%(alpha),this_C_a_Ainv_diff)
         del this_C_a_Ainv_diff
 else:
-    print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_str)
+    print("## Computing C_a C^-1 of map assuming %s weightings\n"%weight_type)
     C_a_Cinv_diff = applyC_alpha(Cinv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,n_k,lmax,include_pix=include_pix,data=False)
     C_a_Ainv_diff = applyC_alpha(Ainv_diff,nbar,MAS_mat,Y_lms,k_grids,r_grids,v_cell,k_filters,k_norm,n_k,lmax,include_pix=include_pix,data=False)
 
     n_bins = len(C_a_Cinv_diff)
 
     # Compute C^-1 of maps
-    print("## Computing C^-1 C_a C^-1 of map assuming %s weightings"%weight_str)
+    print("## Computing C^-1 C_a C^-1 of map assuming %s weightings\n"%weight_type)
     if wtype==0:
         Cinv_C_a_Cinv_diff = [applyCinv_fkp(C_a_Cinv_diff[alpha],nbar_weight,MAS_mat,v_cell,shot_fac,include_pix=include_pix) for alpha in range(n_bins)]
     else:
@@ -255,9 +234,9 @@ else:
 del Ainv_diff
 
 ### Compute Fisher matrix and bias term, saving each element in turn
-print("\n## Computing Fisher and bias term")
-bias_file_name_a = lambda a: outdir+'patchy%d_%s_%s_%s_g%.1f_pk_q-bar_a_k%.3f_%.3f_%.3f_%d.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk,a)
-fish_file_name_ab = lambda a,b: outdir+'patchy%d_%s_%s_%s_g%.1f_pk_fish_a_k%.3f_%.3f_%.3f_%d_%d.npy'%(rand_it,patch,z_type,weight_str,grid_factor,k_min,k_max,dk,a,b)
+print("## Computing Fisher and bias term")
+bias_file_name_a = lambda alpha: outdir+'%s%d_%s_pk_q-bar%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,k_min,k_max,dk,lmax)
+fish_file_name_ab = lambda alpha,beta: outdir+'%s%d_%s_pk_fish%d,%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,beta,k_min,k_max,dk,lmax)
 
 for alpha in range(n_bins):
     if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
@@ -284,7 +263,6 @@ for alpha in range(n_bins):
 
     # Compute bias term and save
     np.save(bias_file_name_a(alpha),0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*N_Ainv_a)))
-    #q_bias[alpha] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*N_Ainv_a))
 
     for beta in range(n_bins):
         if os.path.exists(fish_file_name_ab(alpha,beta)): continue
@@ -303,7 +281,7 @@ del N_Ainv_a, Cinv_diff, nbar, k_norm, nbar_weight, MAS_mat, Y_lms, k_grids, r_g
 fish = np.zeros((n_bins,n_bins))
 q_bias = np.zeros(n_bins)
 
-print("Reconstructing bias and Fisher matrix from saved entries")
+print("\nReconstructing bias and Fisher matrix from saved entries")
 exit = 0
 for alpha in range(n_bins):
     try:
@@ -344,5 +322,5 @@ if low_mem:
     if os.path.exists(tmpdir): shutil.rmtree(tmpdir)
 
 duration = time.time()-init
-print("\n## Saved output to %s and %s. Exiting after %d seconds (%d minutes)\n\n"%(bias_file_name,fish_file_name,duration,duration//60))
+print("\n## Saved output to %s and %s. Exiting after %d seconds (%d minutes)\n"%(bias_file_name,fish_file_name,duration,duration//60))
 sys.exit()
