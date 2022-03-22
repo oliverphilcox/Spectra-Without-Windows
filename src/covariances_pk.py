@@ -1,7 +1,7 @@
 # covariances_pk.py (Oliver Philcox, 2021)
 ### Covariance definitions for optimal estimator P_ell(k) and bispectrum estimation
 
-import sys, os, copy, time
+import sys, time
 import numpy as np
 # custom definitions
 sys.path.append('../src')

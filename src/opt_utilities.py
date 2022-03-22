@@ -1,206 +1,182 @@
 # opt_utilities.py (Oliver Philcox, 2021)
 ### Various utility functions for the optimal estimators.
 
-import sys, os, copy, time, pyfftw
+import os, pyfftw
 import matplotlib.pyplot as plt
 import numpy as np
 from nbodykit.lab import *
-from nbodykit import setup_logging, style
-from scipy.interpolate import interp1d
 import sympy as sp
-
-#### Input directories (should be user-set)
-boss_data_dir = '/projects/QUIJOTE/Oliver/boss_gal/' # location of galaxy files
-patchyN_data_dir = '/projects/QUIJOTE/Oliver/patchy_ngc_mocks/' # location of Patchy ngc mocks
-patchyS_data_dir = '/projects/QUIJOTE/Oliver/patchy_sgc_mocks/' # location of Patchy sgc mocks
-mask_dir = '/projects/QUIJOTE/Oliver/boss_masks/' # location of nbar files, computed by generate_mask.py
 
 ########################### HANDLING DATA ###########################
 
-def load_data(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
-    """
-    Load in BOSS/Patchy data with specified patch, z cut, and cosmology.
-    
-    Parameters
-    ----------
-    sim_no : int
-        Simulation number. -1 gives BOSS, else Patchy is used
-    ZMIN : float
-        Minimum redshift
-    ZMAX : float
-        Maximum redshift
-    cosmo : Cosmology
-        Nbodykit Cosmology object
-    patch : str
-        Patch: 'ngc' or 'sgc'
-    fkp_weights : bool
-        Whether to add FKP weights (not usually needed)
-    P_fkp : float
-        FKP weight (default 1e4)
-    weight_only : bool
-        If true, return only the weights
-
-    Returns
-    -------
-    data : Catalog
-        Nbodykit catalog containing the data
-    """
-    if sim_no==-1:
-        # BOSS FITS File
-        if patch=='ngc':
-            datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_North.fits'
-        elif patch=='sgc':
-            datfile = boss_data_dir+'/galaxy_DR12v5_CMASSLOWZTOT_South.fits'
-        else:
-            raise Exception("Wrong patch!")
-        data = FITSCatalog(datfile)
-    else:
-        # Patchy input
-        if patch=='ngc':
-            datfile = patchyN_data_dir+'ngc_mocks/Patchy-Mocks-DR12NGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
-        elif patch=='sgc':
-            datfile = patchyS_data_dir+'sgc_mocks/Patchy-Mocks-DR12SGC-COMPSAM_V6C_%s.dat'%str(sim_no).zfill(4)
-        else:
-            raise Exception("Wrong patch!")
-        data = CSVCatalog(datfile,['RA', 'DEC', 'Z', 'MSTAR', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
-
-    valid = (data['Z'] > ZMIN)&(data['Z'] < ZMAX)
-    data = data[valid]
-
-    if sim_no==-1:
-        print("Loaded %d %s galaxies from BOSS\n"%(len(data),patch))
-    else:
-        print("Loaded %d %s galaxies from simulation %d \n"%(len(data),patch,sim_no))
-
-    if sim_no==-1:
-        # Add completeness + systematic weights
-        data['WEIGHT'] = data['WEIGHT_SYSTOT'] * (data['WEIGHT_NOZ'] + data['WEIGHT_CP'] - 1.)
-        data['NBAR'] = data['NZ']
-    else:
-        # Add the completeness weights
-        data['WEIGHT'] = 1.* data['VETO FLAG'] * data['FIBER COLLISION']
-
-    if weight_only: return data['WEIGHT']
-
-    # Convert to Cartesian co-ordinates using the fiducial cosmology
-    data['Position'] = transform.SkyToCartesian(data['RA'], data['DEC'], data['Z'], cosmo=cosmo)
-
-    if fkp_weights:
-        print("Adding FKP weights!")
-        if sim_no!=-1:
-            data['WEIGHT_FKP'] = 1./(1.+P_fkp*data['NBAR'])
-    else:
-        print("No FKP weights!")
-        data['WEIGHT_FKP'] = np.ones(len(data['NBAR']))
-    return data
-
-
-def load_randoms(sim_no,ZMIN,ZMAX,cosmo,patch='ngc',fkp_weights=False,P_fkp=1e4,weight_only=False):
-    """Load in BOSS/Patchy randoms with specified patch, z cut, and cosmology.
+def load_data(sim_no, config,cosmo,fkp_weights=False,weight_only=False,P_fkp=1e4):
+    """Load in data particles with specified parameters and cosmology.
     
     Parameters
     ----------
         sim_no : int
-            Simulation number. -1 gives BOSS, else Patchy is used
-        ZMIN : float
-            Minimum redshift
-        ZMAX : float
-            Maximum redshift
+            Simulation number to append to file name. If -1 (e.g. for true data), no simulation number is appended. 
+        config : ConfigObj
+            Configuration file
         cosmo : Cosmology
-            Nbodykit Cosmology object
-        patch : str
-            Patch: 'ngc' or 'sgc'
+            Nbodykit cosmology class, containing fiducial cosmology
         fkp_weights : bool
-            Whether to add FKP weights (not usually needed)
-        P_fkp : float
-            FKP weight (default 1e4)
+            If True, include FKP weights in the data catalog
         weight_only : bool
-            If true, return only the weights
+            If True, return only the data weights
+        P_fkp : float
+            FKP normalization parameter
+        
+    Returns
+    -------
+        data : Catalog
+            Nbodykit catalog containing the data
+    """
+    try:
+        if sim_no!=-1:
+            datfile = str(config['catalogs']['data_file'])%sim_no
+        else:
+            datfile = config['catalogs']['data_file']
+    except:
+        datfile = config['catalogs']['data_file']
+        sim_no = -1
+    if datfile.split('.')[-1]=='fits':
+        data = FITSCatalog(datfile)
+    else:
+        datcolumns = config.getlist('catalogs','data_columns')
+        data = CSVCatalog(datfile,datcolumns)
+
+    valid = (data['Z'] > float(config['sample']['z_min']))&(data['Z'] < float(config['sample']['z_max']))
+    data = data[valid]
+    print("Loaded %d galaxies\n"%(len(data)))
+
+    try:
+        data['WEIGHT']
+    except KeyError:
+        if sim_no==-1:
+            data['WEIGHT'] = data['WEIGHT_SYSTOT'] * (data['WEIGHT_NOZ'] + data['WEIGHT_CP'] - 1.)
+        else:
+            data['WEIGHT'] = 1.* data['VETO FLAG'] * data['FIBER COLLISION']
+    
+    if weight_only: return data['WEIGHT']
+    
+    # Convert to Cartesian co-ordinates using the fiducial cosmology
+    data['Position'] = transform.SkyToCartesian(data['RA'], data['DEC'], data['Z'], cosmo=cosmo)
+    try:
+        data['NBAR'] = (1./data['WEIGHT_FKP']-1.)/P_fkp
+    except KeyError:
+        pass
+    
+    if fkp_weights:
+        print("Adding FKP weights!")
+        try:
+            data['WEIGHT_FKP'] = 1./(1.+P_fkp*data['NBAR'])
+        except KeyError:
+            pass
+    else:
+        # erase FKP weights
+        data['WEIGHT_FKP'] = np.ones(len(data['NBAR']))
+    return data
+
+def load_randoms(config,cosmo,fkp_weights=False,weight_only=False,P_fkp=1e4):
+    """Load in random particles with specified parameters and cosmology.
+
+    Parameters
+    ----------
+        config : ConfigObj
+            Configuration file
+        cosmo : Cosmology
+            Nbodykit cosmology class, containing fiducial cosmology
+        fkp_weights : bool
+            If True, include FKP weights in the randoms catalog
+        weight_only : bool
+            If True, return only the random weights
+        P_fkp : float
+            FKP normalization parameter
 
     Returns
     -------
         randoms : Catalog
-            Nbodykit catalog containing the randoms
+            Nbodykit catalog containing the random particles
     """
-    if sim_no!=-1:
-        if patch=='ngc':
-            randfile = patchyN_data_dir+'Patchy-Mocks-Randoms-DR12NGC-COMPSAM_V6C_x50.dat'
-        elif patch=='sgc':
-            randfile = patchyS_data_dir+'Patchy-Mocks-Randoms-DR12SGC-COMPSAM_V6C_x50.dat'
-        else:
-            raise Exception("Wrong patch!")
-        randoms = CSVCatalog(randfile,['RA', 'DEC', 'Z', 'NBAR', 'BIAS', 'VETO FLAG', 'FIBER COLLISION'])
-    else:
-        if patch=='ngc':
-            randfile = boss_data_dir+'random0_DR12v5_CMASSLOWZTOT_North.fits'
-        elif patch=='sgc':
-            randfile = boss_data_dir+'random0_DR12v5_CMASSLOWZTOT_South.fits'
-        else:
-            raise Exception("Wrong patch!")
+    randfile = config['catalogs']['randoms_file']
+    if randfile.split('.')[-1]=='fits':
         randoms = FITSCatalog(randfile)
+    else:
+        randcolumns = config.getlist('catalogs','randoms_columns')
+        randoms = CSVCatalog(randfile,randcolumns)
 
     # Cut to required redshift range
-    valid = (randoms['Z'] > ZMIN)&(randoms['Z'] < ZMAX)
+    valid = (randoms['Z'] > float(config['sample']['z_min']))&(randoms['Z'] < float(config['sample']['z_max']))
     randoms = randoms[valid]
+    print("Loaded %d randoms\n"%(len(randoms)))
 
-    print("Loaded %d randoms \n"%len(randoms))
-
-    if sim_no==-1:
-        randoms['WEIGHT'] = 1.*randoms['Weight'] # all unity here
-        randoms['NBAR'] = randoms['NZ']
-    else:
-        randoms['WEIGHT'] = 1.*randoms['VETO FLAG']*randoms['FIBER COLLISION']
-
+    # Define the weights, if not specified
+    try:
+        randoms['WEIGHT']
+    except KeyError:
+        try:
+            randoms['WEIGHT'] = 1.*randoms['VETO FLAG']*randoms['FIBER COLLISION']
+        except KeyError:
+            randoms['WEIGHT'] = 1.*randoms['Weight']
     if weight_only: return randoms['WEIGHT']
-
+    
     # Convert to Cartesian co-ordinates using the fiducial cosmology
     randoms['Position'] = transform.SkyToCartesian(randoms['RA'], randoms['DEC'], randoms['Z'], cosmo=cosmo)
+    try:
+        randoms['NBAR'] = (1./randoms['WEIGHT_FKP']-1.)/P_fkp
+    except KeyError:
+        pass
 
     if fkp_weights:
         print("Adding FKP weights!")
-        if sim_no!=-1:
+        try:
             randoms['WEIGHT_FKP'] = 1./(1.+P_fkp*randoms['NBAR'])
+        except KeyError:
+            pass
     else:
-        print("No FKP weights!")
+        # erase FKP weights
         randoms['WEIGHT_FKP'] = np.ones(len(randoms['NBAR']))
     return randoms
 
-def load_nbar(sim_no,patch,z_type,ZMIN,ZMAX,grid_factor,alpha_ran):
-    """Load the smooth n_bar field computed from the angular mask and n(z) function on the grid.
-    This has no window effects since it does not involve particle samples.
+def load_nbar(config,spec_type,alpha_ran):
+    """Load the smooth n_bar field computed from the angular mask and n(z) function on the grid for the given survey parameters.
+    This has no mass assignment effects since it does not involve particle samples.
     It is normalized by the alpha factor = Sum (data weights) / Sum (random weights).
     
     Parameters
     ----------
-        sim_no : int
-            Simulation number. -1 gives BOSS, else Patchy is used
-        patch : str
-            Patch: 'ngc' or 'sgc'
-        z_type : str
-            Redshift bin: 'z1' or 'z3'
-        ZMIN : float
-            Minimum redshift
-        ZMAX : float
-            Maximum redshift
-        grid_factor : int
-            Factor by which to reduce the grid size
+        config : ConfigObj
+            Configuration file
+        spec_type : str
+            Type of spectrum to use ('pk' or 'bk'). This selects the grid size.
         alpha_ran : float
-            Ratio of summed data weights to summed random weights. This is used to normalize the nbar field.
-
+            Alpha factor for the random sample
+        
     Returns
     -------
-        nbar : ndarray
-            Array contining the 3D number density field
+        nbar : array
+            n(r) map on the grid
     """
-    if sim_no==-1:
-        file_name = mask_dir+'nbar_boss_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-    else:
-        file_name = mask_dir+'nbar_patchy_%s_%s_z%.3f_%.3f_g%.1f.npy'%(patch,z_type,ZMIN,ZMAX,grid_factor)
-    if not os.path.exists(file_name):
-        raise Exception("n_bar file '%s' has not been computed!"%file_name)
 
-    nbar_map = np.load(file_name)*alpha_ran
+    # Define nbar file
+    outdir = str(config['directories']['output'])
+    if spec_type=='pk':
+        grid_3d = np.array(config.getlist('pk-binning','grid'),dtype=int)
+    elif spec_type=='bk':
+        grid_3d = np.array(config.getlist('bk-binning','grid'),dtype=int)
+    else:
+        raise Exception("Spectrum type must be 'pk' or 'bk'!")
+    string = str(config['sample']['type'])
+    ZMIN, ZMAX = float(config['sample']['z_min']), float(config['sample']['z_max'])
+    nbar_file = outdir+'nbar_%sz%.3f_%.3f_g%d_%d_%d.npy'%(string,ZMIN,ZMAX,grid_3d[0],grid_3d[1],grid_3d[2])
+
+    if not os.path.exists(nbar_file):
+        raise Exception("n_bar file '%s' has not been computed!"%nbar_file)
+
+    nbar_map = np.load(nbar_file)*alpha_ran
     return nbar_map
+
 
 def grid_data(data, randoms, boxsize_grid, grid_3d, MAS='TSC', return_randoms=True,return_norm=False):
     """Given two nbodykit catalogs, paint the data and randoms to a single mesh, with a defined mass assignment scheme.
@@ -507,6 +483,16 @@ def compute_filters(kmin,kmax,dk):
     k_lo = k_all[:-1]
     k_hi = k_all[1:]
     return lambda i, k_norm: np.logical_and(k_norm>=k_lo[i],k_norm<k_hi[i])
+
+def test_bin(a,b,c,tol=1e-6):
+    """Test a bispectrum bin to see if it satisfies triangle conditions, being careful of numerical overlaps.
+    Here, we force that the triangle *center* must obey the triangle conditions, to avoid triangles that are difficult to treat theoretically."""
+    k_lo = np.arange(k_min,k_max,dk)
+    k_cen = k_lo+dk/2
+    if k_cen[c]<np.abs(k_cen[a]-k_cen[b]) or k_cen[c]>k_cen[a]+k_cen[b]:
+        return 0
+    else:
+        return 1
 
 ########################### FOURIER TRANSFORMS ###########################
 
