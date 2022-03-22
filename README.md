@@ -1,4 +1,4 @@
-# BOSS Without Windows
+# Spectra Without Windows
 
 This repository contains details of the window-free analysis of non-uniform spectroscopic data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287), and additionally contains the data generated for the BOSS power spectrum and bispectrum analysis of [Philcox & Ivanov](https://arxiv.org/abs/2112.04515).
 
