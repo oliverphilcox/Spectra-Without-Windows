@@ -36,3 +36,5 @@ Codes and data from this repository are used in the following publications:
 - Philcox & Ivanov (2021, [Phys. Rev. D](https://doi.org/10.1103/PhysRevD.105.043517), [arXiv](https://arxiv.org/abs/2112.04515)): Combined constraints on LambdaCDM from the BOSS power spectrum and bispectrum.
 - Cabass et al. (2022, [arXiv](https://arxiv.org/abs/2201.07238)): Constraints on single-field inflation from the BOSS power spectrum and bispectrum.
 - Nunes et al. (2022, [arXiv](https://arxiv.org/abs/2203.08093)): Constraints on dark-sector interactions from the BOSS galaxy power spectrum.
+
+**NB**: This code formerly appeared as ``BOSS-Without-Windows``, with the BOSS survey specifications hardcoded. For posterity, the original version of the code can be found on this [branch](https://github.com/oliverphilcox/Spectra-Without-Windows/tree/boss-specific-code).
