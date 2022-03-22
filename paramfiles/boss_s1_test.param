@@ -1,0 +1,75 @@
+### Parameter file for the BOSS SGC z1 dataset
+# NB: This is strictly for testing purposes only. It uses a small fraction of the data, low resolution, and few MC realization for speed.
+
+[catalogs]
+# Input data, and column labels
+# If multiple simulations are used, the data file-name should contain "%d", which will be replaced by the simulation number.
+# If only one simulation is used, no "%d" should be included, and the simulation-number should be set to -1.
+data_file = /projects/QUIJOTE/Oliver/boss_gal/galaxy_DR12v5_CMASSLOWZTOT_South.fits
+data_columns = 
+# Input randoms, and column labels
+randoms_file = /projects/QUIJOTE/Oliver/boss_gal/random0_DR12v5_CMASSLOWZTOT_South.fits
+randoms_columns = 
+# Mangle mask file
+mask_file = /projects/QUIJOTE/Oliver/boss_masks/mask_DR12v5_CMASSLOWZTOT_South.ply
+
+[pk-binning]
+# k-space binning parameters
+k_min = 0.00
+k_max = 0.11
+dk = 0.005
+# Maximum (even) Legendre multipole
+lmax = 4
+# Number of grid cells per dimension
+grid = 73, 138, 81
+
+[bk-binning]
+# k-space binning parameters
+k_min = 0.00
+k_max = 0.06
+dk = 0.01
+# Maximum (even) Legendre multipole
+lmax = 0
+# Number of grid cells per dimension
+grid = 73, 138, 81
+
+[sample]
+# Type of data (prepended to file names)
+type = boss_s1_
+# Redshift range
+z_min = 0.2
+z_max = 0.25
+# Boxsize in Mpc/h
+box = 1000, 1900, 1100
+
+[parameters]
+# Cosmological parameters used for coordinate conversions
+h_fid = 0.676
+OmegaM_fid = 0.31
+
+[directories]
+# to hold temporary output (should be large)
+temporary = /tmp/boss_patchy_s1_
+# to hold intermediate sums (should be large)
+monte_carlo = /projects/QUIJOTE/Oliver/boss_pkbk_test/summed_phi_alpha/
+# to hold output analyis products
+output = /projects/QUIJOTE/Oliver/boss_pkbk_test/
+
+### Additional settings, mostly used for testing
+[settings]
+# Weight type: FKP or ML 
+weights = FKP
+# Number of Monte Carlo simulations
+N_mc = 2
+# Whether to forward-model pixellation effects.
+include_pix = False
+# Whether to define nbar(r) from the random particles instead of the mask / n(z) distribution.
+rand_nbar = False
+# Fiducial Pk (only used if weights = ML)
+fiducial_pk = None
+# Whether to subtract of linear q-bar term
+use_qbar = True
+# Density of uniform particles
+nbar_unif = 1e-3
+# Save and reload Pk files if memory usage is a concern
+low_mem = True
