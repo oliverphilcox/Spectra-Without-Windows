@@ -201,6 +201,46 @@ for i in range(1,N_mc+1):
 full_fisher -= mean_fisher
 np.save(full_fish_file_name,full_fisher)
 
+# Now perform cleanup
+
+bias_ab_file_name = lambda a,b,l_i: mcdir+'%s%d_%s_bias_map%d,%d,%d_k%.3f_%.3f_%.3f_l%d.npz'%(string,N_mc,weight_type,a,b,l_i,k_min,k_max,dk,lmax)
+
+
+def clean_row(alpha):
+    ### Clean a single row of the Fisher matrix
+    l_i = alpha//(n_bins//n_l)
+    a_index = (alpha%(n_bins//n_l))
+    a,b,c = bins_index[a_index]
+    os.remove(sum_tilde_phi_alpha_file_name(a,b,c,l_i))
+    os.remove(sum_Cinv_phi_alpha_file_name(a,b,c,l_i))
+
+    # Remove lock files
+    os.remove(sum_tilde_phi_alpha_file_name(a,b,c,l_i)+'.lock')
+    os.remove(sum_Cinv_phi_alpha_file_name(a,b,c,l_i)+'.lock')
+
+    return 0
+
+print("\n### Cleaning up!")
+
+# Cleanup fisher elements and lockdirs, parallelizing for speed
+p = mp.Pool(processes=n_proc)
+tmp = np.array(list(tqdm.tqdm(p.imap(clean_row,range(n_bins)),total=n_bins)))
+p.close()
+p.join()
+
+# Clean up individual Fisher simulations
+for i in range(1,N_mc+1):
+    os.remove(fish_file_name(i))
+
+# Cleanup bias locks
+for a in range(n_k):
+    for b in range(a,n_k):
+        # b > a, so only this term contains ell
+        for l_i in range(n_l):
+            # Save the product (note that this is stored for a <= b only by symmetry).
+            os.remove(bias_ab_file_name(a,b,l_i)+'.lock')
+
+# Exit!
 duration = time.time()-init
 print("## Saved Fisher matrix to %s. Exiting after %d seconds (%d minutes)\n"%(full_fish_file_name,duration,duration//60))
 sys.exit()

@@ -228,6 +228,11 @@ except IOError:
     np.save(combined_fish_file_name,fish)
     print("Computed Fisher matrix from %d realizations and saved to %s\n"%(N_mc,combined_fish_file_name))
 
+    # Cleanup temporary files
+    for i in range(1,N_mc+1):
+        os.remove(fish_file_name(i))
+        os.remove(bias_file_name(i))
+
 ###################### COMPUTE POWER SPECTRUM AND SAVE #########################
 
 p_alpha = np.inner(np.linalg.inv(fish),q_alpha-bias)
