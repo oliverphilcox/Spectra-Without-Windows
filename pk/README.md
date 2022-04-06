@@ -1,4 +1,4 @@
-# Windowless BOSS Power Spectra
+# Windowless Power Spectra
 
 ### Overview
 
