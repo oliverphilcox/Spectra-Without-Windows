@@ -1,4 +1,4 @@
-# Windowless BOSS Bispectra
+# Windowless Bispectra
 
 ### Overview
 
