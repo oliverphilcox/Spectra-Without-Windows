@@ -100,7 +100,7 @@ init = time.time()
 if sim_no!=-1:
     pk_file_name = outdir + 'pk_%s%d_%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,sim_no,weight_type,N_mc,k_min,k_max,dk,lmax)
 else:
-    pk_file_name = outdir + 'pk_%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(weight_type,N_mc,k_min,k_max,dk,lmax)
+    pk_file_name = outdir + 'pk_%s%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,weight_type,N_mc,k_min,k_max,dk,lmax)
 if os.path.exists(pk_file_name):
     print("Simulation has already been computed; exiting!")
     sys.exit()
