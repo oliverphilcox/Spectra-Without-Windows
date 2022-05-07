@@ -112,10 +112,39 @@ init = time.time()
 # First check that the simulation hasn't already been analyzed
 bias_file_name = outdir+'%s%d_%s_pk_q-bar_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
 fish_file_name = outdir+'%s%d_%s_pk_fish_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
+bias_file_name_a = lambda alpha: outdir+'%s%d_%s_pk_q-bar%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,k_min,k_max,dk,lmax)
+fish_file_name_ab = lambda alpha,beta: outdir+'%s%d_%s_pk_fish%d,%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,beta,k_min,k_max,dk,lmax)
+combined_bias_file_name = outdir + 'bias_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
+combined_fish_file_name = outdir + 'fisher_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
 
 if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
-    print("Simulation already completed; exiting!\n")
+    print("Simulation already completed; performing clean-up and exiting!\n")
+
+    # Clean up any residual files
+    n_k = int((k_max-k_min)/dk)
+    n_bins = n_k*(lmax//2+1)
+    for alpha in range(n_bins):
+        for beta in range(n_bins):
+            if os.path.exists(fish_file_name_ab(alpha,beta)): os.remove(fish_file_name_ab(alpha,beta))
+        if os.path.exists(bias_file_name_a(alpha)): os.remove(bias_file_name_a(alpha))
+    
+    # Exit
     sys.exit()
+
+if os.path.exists(combined_bias_file_name) and os.path.exists(combined_fish_file_name):
+    print("Full Fisher matrices already completed; performing clean-up and exiting!\n")
+
+    # Clean up any residual files
+    n_k = int((k_max-k_min)/dk)
+    n_bins = n_k*(lmax//2+1)
+    for alpha in range(n_bins):
+        for beta in range(n_bins):
+            if os.path.exists(fish_file_name_ab(alpha,beta)): os.remove(fish_file_name_ab(alpha,beta))
+        if os.path.exists(bias_file_name_a(alpha)): os.remove(bias_file_name_a(alpha))
+    
+    # Exit
+    sys.exit()
+
 
 print("\n## Loading %s random iteration %d with %s weights"%(string,rand_it,weight_type))
 
@@ -235,8 +264,6 @@ del Ainv_diff
 
 ### Compute Fisher matrix and bias term, saving each element in turn
 print("## Computing Fisher and bias term")
-bias_file_name_a = lambda alpha: outdir+'%s%d_%s_pk_q-bar%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,k_min,k_max,dk,lmax)
-fish_file_name_ab = lambda alpha,beta: outdir+'%s%d_%s_pk_fish%d,%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,beta,k_min,k_max,dk,lmax)
 
 for alpha in range(n_bins):
     if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
@@ -292,7 +319,7 @@ for alpha in range(n_bins):
         exit += 1
     for beta in range(n_bins):
         try:
-	    fish[alpha,beta] = np.real(np.load(fish_file_name_ab(alpha,beta),allow_pickle=True))
+	        fish[alpha,beta] = np.real(np.load(fish_file_name_ab(alpha,beta),allow_pickle=True))
         except IOError:
             os.remove(fish_file_name_ab(alpha,beta))
             print("Fisher %d,%d not saved correctly!"%(alpha,beta))

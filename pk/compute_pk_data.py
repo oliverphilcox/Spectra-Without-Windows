@@ -209,6 +209,16 @@ for i in range(len(C_a_Cinv_diff)):
 try:
     bias = np.load(combined_bias_file_name)
     fish = np.load(combined_fish_file_name)
+
+    # If this worked, delete any temporary files left over
+    # Cleanup temporary files
+    print("Cleaning up any remaining temporary files")
+    for i in range(1,N_mc+1):
+        if os.path.exists(fish_file_name(i)):
+            os.remove(fish_file_name(i))
+        if os.path.exists(bias_file_name(i)):
+            os.remove(bias_file_name(i))
+    
 except IOError:
     print("Loading bias term and Fisher matrix from uniform simulations")
 
