@@ -108,7 +108,7 @@ init = time.time()
 if sim_no!=-1:
     p_alpha_file_name = outdir + 'bk_%s%d_%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,sim_no,weight_type,N_mc,k_min,k_max,dk,lmax)
 else:
-    p_alpha_file_name = outdir + 'bk_%s_%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,weight_type,N_mc,k_min,k_max,dk,lmax)
+    p_alpha_file_name = outdir + 'bk_%s%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,weight_type,N_mc,k_min,k_max,dk,lmax)
     
 
 if os.path.exists(p_alpha_file_name):
