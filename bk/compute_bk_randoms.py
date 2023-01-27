@@ -229,6 +229,14 @@ del diff
 ## Compute g^a_l functions
 all_g_a = []
 all_tilde_g_a = []
+
+if include_pix:
+    nCinv = ift(ft(Cinv_diff)/MAS_mat)*nbar
+    nAinv = ift(ft(Ainv_diff)/MAS_mat)*nbar
+else:
+    nCinv = nbar*Cinv_diff
+    nAinv = nbar*Ainv_diff
+
 for l_i in range(0,n_l):
     this_g_a = []
     this_tilde_g_a = []
@@ -237,15 +245,7 @@ for l_i in range(0,n_l):
     ft_nCinv_a = 0.
     ft_nAinv_a = 0.
 
-    if include_pix:
-        nCinv = ift(ft(Cinv_diff)/MAS_mat)*nbar
-        nAinv = ift(ft(Ainv_diff)/MAS_mat)*nbar
-    else:
-        nCinv = nbar*Cinv_diff
-        nAinv = nbar*Ainv_diff
-
     for m_i in range(len(Y_lms[l_i])):
-
         # Compute contribution to sum
         ft_nCinv_a += ft(nCinv*Y_lms[l_i][m_i](*r_grids))*Y_lms[l_i][m_i](*k_grids)
         ft_nAinv_a += ft(nAinv*Y_lms[l_i][m_i](*r_grids))*Y_lms[l_i][m_i](*k_grids)
@@ -480,23 +480,55 @@ if wtype==1:
 
 ###################### COMPUTE FISHER MATRIX CONTRIBUTION ######################
 
-print("\n### Computing Fisher matrix contribution in %d bins satisfying triangle conditions"%(n_bins))
-
-# Define Delta_alpha parameter
+# Compute Delta_abc
+print("Computing Delta_{abc} normalization")
 Delta_abc = np.zeros(n_bins)
+
+# First compute ell=0 elements
 i = 0
-for l_i in range(n_l):
-    for a in range(n_k):
-        for b in range(a,n_k):
-            for c in range(b,n_k):
-                if not test_bin(a,b,c): continue
-                if a==b and a==c and b==c:
-                    Delta_abc[i] = 6.
-                elif a==b or a==c or b==c:
-                    Delta_abc[i] = 2.
-                else:
-                    Delta_abc[i] = 1.
-                i += 1
+for a in range(n_k):
+    for b in range(a,n_k):
+        for c in range(b,n_k):
+            if not test_bin(a,b,c): continue
+            if a==b and a==c and b==c:
+                Delta_abc[i] = 6.
+            elif a==b or a==c or b==c:
+                Delta_abc[i] = 2.
+            else:
+                Delta_abc[i] = 1.
+            i += 1
+
+# Now compute ell > 0 elements, if required
+if n_l>1:
+
+    # Define discrete binning functions
+    bins = [ift(k_filters(a,k_norm)) for a in range(n_k)]
+
+    i_min,i = n_bins//n_l,0
+    for l_i in range(1,n_l):
+        for a in range(n_k):
+            for b in range(a,n_k):
+                for c in range(b,n_k):
+                    if not test_bin(a,b,c): continue
+                    if a!=b and b!=c:
+                        Delta_abc[i+i_min] = 1.
+                    elif a==b and b!=c:
+                        Delta_abc[i+i_min] = 2.
+                    elif a!=b and b==c:
+                        Nabc_0 = np.sum(bins[a]*bins[c]**2.).real
+                        Dl_c = [ift(k_filters(c,k_norm)*Y_lms[l_i][m_i](*k_grids)) for m_i in range(len(Y_lms[l_i]))]
+                        Nabc_l = np.sum([np.sum(bins[a]*Dl_c[m_i]*Dl_c[m_i]).real for m_i in range(len(Y_lms[l_i]))])*4.*np.pi/(4.*l_i+1.)                        
+                        Delta_abc[i+i_min] = 1.+Nabc_l/Nabc_0
+                    elif a==b and b==c:
+                        Nabc_0 = np.sum(bins[c]**3.).real
+                        Dl_c = [ift(k_filters(c,k_norm)*Y_lms[l_i][m_i](*k_grids)) for m_i in range(len(Y_lms[l_i]))]
+                        Nabc_l = np.sum([np.sum(bins[a]*Dl_c[m_i]*Dl_c[m_i]).real for m_i in range(len(Y_lms[l_i]))])*4.*np.pi/(4.*l_i+1.)                        
+                        Delta_abc[i+i_min] = 2.*(1.+2.*Nabc_l/Nabc_0)    
+                    i += 1
+
+    del bins, Dl_c
+ 
+print("\n### Computing Fisher matrix contribution in %d bins satisfying triangle conditions"%(n_bins))
 
 def load_row(alpha):
     ### Load a single row of the Fisher matrix, (phi_alpha C^-1 phi_beta)/12

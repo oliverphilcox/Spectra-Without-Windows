@@ -25,10 +25,10 @@ grid = 262, 500, 277
 [bk-binning]
 # k-space binning parameters
 k_min = 0.00
-k_max = 0.16
+k_max = 0.11
 dk = 0.01
 # Maximum (even) Legendre multipole
-lmax = 0
+lmax = 4
 # Number of grid cells per dimension
 grid = 170, 325, 180
 
@@ -50,9 +50,9 @@ OmegaM_fid = 0.31
 # to hold temporary output (should be large)
 temporary = /tmp/patchy_n3_
 # to hold intermediate sums (should be large)
-monte_carlo = /projects/QUIJOTE/Oliver/patchy_pkbk/summed_phi_alpha/
+monte_carlo = /projects/QUIJOTE/Oliver/patchy_pkbk_mult/summed_phi_alpha/
 # to hold output analyis products
-output = /projects/QUIJOTE/Oliver/patchy_pkbk/
+output = /projects/QUIJOTE/Oliver/patchy_pkbk_mult/
 
 ### Additional settings, mostly used for testing
 [settings]

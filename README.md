@@ -1,10 +1,10 @@
 # Spectra Without Windows
 
-This repository contains details of the window-free analysis of non-uniform spectroscopic data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), and [Philcox 2021](https://arxiv.org/abs/2107.06287), and additionally contains the data generated for the BOSS power spectrum and bispectrum analysis of [Philcox & Ivanov](https://arxiv.org/abs/2112.04515).
+This repository contains details of the window-free analysis of non-uniform spectroscopic data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), [Philcox 2021](https://arxiv.org/abs/2107.06287) and [Cabass et al. 2023](in-prep), and additionally contains the data generated for the BOSS power spectrum and bispectrum analysis of [Philcox & Ivanov](https://arxiv.org/abs/2112.04515) and subsequent works.
 
 ## Outline
-- [pk/](pk): Analysis code to estimate unwindowed power spectra. We additionally supply the raw power spectrum measurements of BOSS, 2048 Patchy simulations and 84 Nseries simulations.
-- [bk/](bk): Analysis code to estimate unwindowed bispectra. We additionally supply the raw bispectrum measurements of BOSS and 2048 Patchy simulations and 84 Nseries simulations.
+- [pk/](pk): Analysis code to estimate unwindowed power spectrum multipoles. We additionally supply the raw power spectrum measurements of BOSS, 2048 Patchy simulations and 84 Nseries simulations.
+- [bk/](bk): Analysis code to estimate unwindowed bispectrum multipoles. We additionally supply the raw bispectrum measurements of BOSS and 2048 Patchy simulations and 84 Nseries simulations.
 - [paramfiles/](paramfiles): Example parameter files.
 - [src/](src): Various Python utilities used in the unwindowed estimators.
 - [slurm/](slurm): Example SLURM submission script.
@@ -26,7 +26,7 @@ When applying the code to the BOSS survey, we use a number of products available
 ## Acknowledgements
 
 ### Authors
-- [Oliver Philcox](mailto:ohep2@cantab.ac.uk) (Princeton / IAS)
+- [Oliver Philcox](mailto:ohep2@cantab.ac.uk) (Columbia / Simons Foundation)
 
 ### Publications
 Codes and data from this repository are used in the following publications:
@@ -35,6 +35,9 @@ Codes and data from this repository are used in the following publications:
 - Philcox (2021, [Phys. Rev. D](https://doi.org/10.1103/PhysRevD.104.123529), [arXiv](https://arxiv.org/abs/2107.06287)): Description of the unwindowed bispectrum estimators.
 - Philcox & Ivanov (2021, [Phys. Rev. D](https://doi.org/10.1103/PhysRevD.105.043517), [arXiv](https://arxiv.org/abs/2112.04515)): Combined constraints on LambdaCDM from the BOSS power spectrum and bispectrum.
 - Cabass et al. (2022, [arXiv](https://arxiv.org/abs/2201.07238)): Constraints on single-field inflation from the BOSS power spectrum and bispectrum.
+- Cabass et al. (2022, [arXiv](https://arxiv.org/abs/2204.01781)): Constraints on multi-field inflation from the BOSS power spectrum and bispectrum.
 - Nunes et al. (2022, [arXiv](https://arxiv.org/abs/2203.08093)): Constraints on dark-sector interactions from the BOSS galaxy power spectrum.
+- Rogers et al. (2023, [arXiv](https://arxiv.org/abs/2301.08361)): Ultra-light axions and the S8 tension: joint constraints from the cosmic microwave background and galaxy clustering.
+- Cabass et al. (2023, [arXiv](in-prep)): Cosmology with the Galaxy Bispectrum Multipoles: Optimal Estimation and Application to BOSS Data.
 
 **NB**: This code formerly appeared as ``BOSS-Without-Windows``, with the BOSS survey specifications hardcoded. For posterity, the original version of the code can be found on this [branch](https://github.com/oliverphilcox/Spectra-Without-Windows/tree/boss-specific-code).

@@ -7,6 +7,9 @@
 from nbodykit.lab import *
 import sys, os, time, configparser
 import numpy as np
+# custom definitions
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/../src')
+from opt_utilities import ft, ift, compute_filters, load_data, load_randoms, grid_data, load_coord_grids, compute_spherical_harmonic_functions
 
 # Read command line arguments
 if len(sys.argv)!=2:
@@ -35,10 +38,13 @@ else:
 
 # Binning parameters
 k_min, k_max, dk = float(config['bk-binning']['k_min']),float(config['bk-binning']['k_max']),float(config['bk-binning']['dk'])
+k_filters = compute_filters(k_min,k_max,dk)
+lmax = int(config['bk-binning']['lmax'])
+n_l = lmax//2+1
+n_k = int((k_max-k_min)/dk)
 assert k_max>k_min
 assert dk>0
 assert k_min>=0
-lmax = int(config['bk-binning']['lmax'])
 assert (lmax//2)*2==lmax, "l-max must be even!"
 
 ## Directories
@@ -65,11 +71,34 @@ print("\n########################################################")
 
 init = time.time()
 
+# Define k grids, if needed
+if n_l>1:
+
+    # Fiducial cosmological parameters
+    h_fid, OmegaM_fid = float(config['parameters']['h_fid']), float(config['parameters']['OmegaM_fid'])
+
+    # Survey dimensions
+    boxsize_grid = np.array(config.getlist('sample','box'),dtype=float)
+    grid_3d = np.array(config.getlist('bk-binning','grid'),dtype=int)
+
+    ### Load fiducial cosmology for co-ordinate conversions (in nbodykit)
+    cosmo_coord = cosmology.Cosmology(h=h_fid).match(Omega0_m = OmegaM_fid)
+
+    # Load data and paint to grid
+    data = load_data(1,config,cosmo_coord,fkp_weights=False)
+    randoms = load_randoms(config,cosmo_coord,fkp_weights=False)
+    density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)[1]
+    del data, randoms
+
+    # Load grids in real and Fourier space
+    k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
+    k_norm = np.sqrt(np.sum(k_grids**2.,axis=0))
+    k_grids /= (1e-12+k_norm)
+    del density
+
+    Y_lms = compute_spherical_harmonic_functions(lmax)
 
 ############################### DEFINE BINNING ##############################
-
-n_l = lmax//2+1
-n_k = int((k_max-k_min)/dk)
 
 def test_bin(a,b,c,tol=1e-6):
     """Test bin to see if it satisfies triangle conditions, being careful of numerical overlaps."""
@@ -97,8 +126,12 @@ for a in range(n_k):
             bins_index.append([a,b,c])
             n_bins += (lmax//2+1)
 
-# Compute triangle factor
-Delta_abc = np.zeros(n_bins//n_l)
+
+# Compute Delta_abc
+print("Computing Delta_{abc} normalization")
+Delta_abc = np.zeros(n_bins)
+
+# First compute ell=0 elements
 i = 0
 for a in range(n_k):
     for b in range(a,n_k):
@@ -111,6 +144,36 @@ for a in range(n_k):
             else:
                 Delta_abc[i] = 1.
             i += 1
+
+# Now compute ell > 0 elements, if required
+if n_l>1:
+
+    # Define discrete binning functions
+    bins = [ift(k_filters(a,k_norm)) for a in range(n_k)]
+
+    i_min,i = n_bins//n_l,0
+    for l_i in range(1,n_l):
+        for a in range(n_k):
+            for b in range(a,n_k):
+                for c in range(b,n_k):
+                    if not test_bin(a,b,c): continue
+                    if a!=b and b!=c:
+                        Delta_abc[i+i_min] = 1.
+                    elif a==b and b!=c:
+                        Delta_abc[i+i_min] = 2.
+                    elif a!=b and b==c:
+                        Nabc_0 = np.sum(bins[a]*bins[c]**2.).real
+                        Dl_c = [ift(k_filters(c,k_norm)*Y_lms[l_i][m_i](*k_grids)) for m_i in range(len(Y_lms[l_i]))]
+                        Nabc_l = np.sum([np.sum(bins[a]*Dl_c[m_i]*Dl_c[m_i]).real for m_i in range(len(Y_lms[l_i]))])*4.*np.pi/(4.*l_i+1.)                        
+                        Delta_abc[i+i_min] = 1.+Nabc_l/Nabc_0
+                    elif a==b and b==c:
+                        Nabc_0 = np.sum(bins[c]**3.).real
+                        Dl_c = [ift(k_filters(c,k_norm)*Y_lms[l_i][m_i](*k_grids)) for m_i in range(len(Y_lms[l_i]))]
+                        Nabc_l = np.sum([np.sum(bins[a]*Dl_c[m_i]*Dl_c[m_i]).real for m_i in range(len(Y_lms[l_i]))])*4.*np.pi/(4.*l_i+1.)                        
+                        Delta_abc[i+i_min] = 2.*(1.+2.*Nabc_l/Nabc_0)    
+                    i += 1
+
+    del bins, Dl_c
 
 ########################### CONSTRUCT FISHER MATRIX ###########################
 
@@ -178,8 +241,7 @@ p.join()
 print("Multi-processed Fisher matrix computation complete")
 
 # Add symmetry factor
-Delta_abc_all = np.hstack([Delta_abc for _ in range(n_l)])
-mean_fisher *= 4./np.outer(Delta_abc_all,Delta_abc_all)
+mean_fisher *= 4./np.outer(Delta_abc,Delta_abc)
 
 ## Add in conjugate symmetry
 for alpha in range(n_bins):

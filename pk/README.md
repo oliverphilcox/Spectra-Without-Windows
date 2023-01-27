@@ -2,7 +2,7 @@
 
 ### Overview
 
-To compute power spectra, there are two steps:
+To compute power spectrum multipoles, there are two steps:
 1. Run the ```compute_pk_randoms.py``` script to generate and analyze randomly distributed particles. These are used to compute the Fisher matrix appropriate for given survey geommetry. This script should be run with around 100 choices of input parameter ```rand_it```. 
 2. Run the ```compute_pk_data.py``` script to analyze a specific simulation or dataset. Step (1) must be computed before this is run. 
 
@@ -16,4 +16,4 @@ On the command line, the following parameters can be specified:
 
 ### Data
 
-In the [data/](data) directory, we give the raw unwindowed power spectrum measurements of BOSS, 2048 MultiDark-Patchy simulations and 84 Nseries simulations. Further details of the input parameters can be found in the file headers. Note that we remove any k-bins that are not properly corrected for the survey geometry. The original k-binning limits given in the final header. Note also that these results were run with an earlier version of the code, thus follow slightly different naming conventions.
+In the [data/](data) directory, we give the raw unwindowed bispectrum multipole measurements of BOSS, 2048 MultiDark-Patchy simulations and 84 Nseries simulations. Further details of the input parameters can be found in the file headers. Note that we remove any k-bins that are not properly corrected for the survey geometry. The original k-binning limits given in the final header.
