@@ -38,6 +38,6 @@ Codes and data from this repository are used in the following publications:
 - Cabass et al. (2022, [arXiv](https://arxiv.org/abs/2204.01781)): Constraints on multi-field inflation from the BOSS power spectrum and bispectrum.
 - Nunes et al. (2022, [arXiv](https://arxiv.org/abs/2203.08093)): Constraints on dark-sector interactions from the BOSS galaxy power spectrum.
 - Rogers et al. (2023, [arXiv](https://arxiv.org/abs/2301.08361)): Ultra-light axions and the S8 tension: joint constraints from the cosmic microwave background and galaxy clustering.
-- Cabass et al. (2023, [arXiv](in-prep)): Cosmology with the Galaxy Bispectrum Multipoles: Optimal Estimation and Application to BOSS Data.
+- Ivanov et al. (2023, [arXiv](https://arxiv.org/abs/2302.04414)): Cosmology with the Galaxy Bispectrum Multipoles: Optimal Estimation and Application to BOSS Data.
 
 **NB**: This code formerly appeared as ``BOSS-Without-Windows``, with the BOSS survey specifications hardcoded. For posterity, the original version of the code can be found on this [branch](https://github.com/oliverphilcox/Spectra-Without-Windows/tree/boss-specific-code).
