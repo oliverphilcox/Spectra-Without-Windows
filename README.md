@@ -7,7 +7,7 @@ This repository contains details of the window-free analysis of non-uniform spec
 - [bk/](bk): Analysis code to estimate unwindowed bispectrum multipoles. We additionally supply the raw bispectrum measurements of BOSS and 2048 Patchy simulations and 84 Nseries simulations.
 - [paramfiles/](paramfiles): Example parameter files.
 - [src/](src): Various Python utilities used in the unwindowed estimators.
-- [slurm/](slurm): Example SLURM submission script.
+- [slurm/](slurm): Example SLURM submission scripts.
 - [generate_mask.py](generate_mask.py): Utility function to generate the background number density, n(r) from the survey mask and n(z) distribution. This is described in the code header.
 
 ### Requirements
@@ -21,7 +21,7 @@ The scripts in this repository have the following dependencies:
 - [fasteners](https://pypi.org/project/fasteners/) (for providing file overwrites in bispectrum computation)
 - [mangle](https://github.com/mollyswanson/manglepy) (for reading survey mask files)
 
-When applying the code to the BOSS survey, we use a number of products available on the BOSS [SAS](https://data.sdss.org/sas/dr12/boss/lss/), which are references in the relevant [paramfiles](paramfiles).
+When applying the code to the BOSS survey, we use a number of products available on the BOSS [SAS](https://data.sdss.org/sas/dr12/boss/lss/), which are referenced in the relevant [paramfiles](paramfiles).
 
 ## Acknowledgements
 
