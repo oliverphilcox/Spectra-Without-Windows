@@ -35,6 +35,9 @@ def load_data(sim_no, config,cosmo,fkp_weights=False,weight_only=False,P_fkp=1e4
     try:
         if sim_no!=-1:
             datfile = str(config['catalogs']['data_file'])%sim_no
+            # Catch errors from file numbering schemes
+            if not os.path.exists(datfile):
+                datfile = datfile.replace("_%d"%sim_no,"_%s"%(str(sim_no).zfill(4)))
         else:
             datfile = config['catalogs']['data_file']
     except:

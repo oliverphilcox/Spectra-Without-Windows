@@ -88,6 +88,7 @@ print("\n## Loading data and randoms")
 
 # Load data to get co-ordinate grids and random properties
 data = load_data(1,config,cosmo_coord,fkp_weights=False)
+
 randoms = load_randoms(config,cosmo_coord,fkp_weights=False)
 diff, density = grid_data(data, randoms, boxsize_grid,grid_3d,MAS='TSC',return_randoms=False,return_norm=False)
 k_grids, r_grids = load_coord_grids(boxsize_grid, grid_3d, density)
