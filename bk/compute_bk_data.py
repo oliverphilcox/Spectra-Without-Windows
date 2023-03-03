@@ -1,7 +1,7 @@
 # compute_bk_data.py (Oliver Philcox, 2021)
 ### Compute the component g^a maps for the binned bispectrum of survey data with FKP or ML weightings
 ### These are then used to compute the full windowless bispectrum estimate
-### Note compute_bk_randoms.py and compute_bk_fisher.py must be run before this script to compute the Fisher matrix
+### Note compute_bk_randoms.py must be run before this script to compute the Fisher matrix contributions
 
 # Import modules
 from nbodykit.lab import *
@@ -48,8 +48,8 @@ lmax = int(config['bk-binning']['lmax'])
 assert (lmax//2)*2==lmax, "l-max must be even!"
 
 ## Directories
-mcdir =  str(config['directories']['monte_carlo'])
 outdir =  str(config['directories']['output'])
+mcdir = str(config['directories']['monte_carlo'])
 
 # Redshifts
 ZMIN, ZMAX = float(config['sample']['z_min']), float(config['sample']['z_max'])
@@ -109,7 +109,6 @@ if sim_no!=-1:
     p_alpha_file_name = outdir + 'bk_%s%d_%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,sim_no,weight_type,N_mc,k_min,k_max,dk,lmax)
 else:
     p_alpha_file_name = outdir + 'bk_%s%s_N%d_k%.3f_%.3f_%.3f_l%d.txt'%(string,weight_type,N_mc,k_min,k_max,dk,lmax)
-    
 
 if os.path.exists(p_alpha_file_name):
     print("Simulation has already been computed; exiting!")
@@ -209,7 +208,41 @@ for a in range(n_k):
             bins_index.append([a,b,c])
             n_bins += (lmax//2+1)
 
-########################### COMPUTE g_a ###########################
+############################## LOAD FISHER MATRIX ##############################
+
+bias_file_name = lambda ii: mcdir+'%s%d_%s_bk_bias_alpha_k%.3f_%.3f_%.3f_l%d.npz'%(string,ii,weight_type,k_min,k_max,dk,lmax)
+fish_file_name = lambda ii: mcdir+'%s%d_%s_bk_fish_alpha_beta_k%.3f_%.3f_%.3f_l%d.npy'%(string,ii,weight_type,k_min,k_max,dk,lmax)
+combined_fish_file_name = outdir+'fisher-bk_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
+
+## First load in Fisher matrix
+try:
+    fish = np.load(combined_fish_file_name)
+    print("Loading Fisher matrix from file")
+    
+    # If this worked, delete any temporary files left over
+    # Cleanup temporary files
+    print("Cleaning up any remaining temporary files")
+    for i in range(1,N_mc//2+1):
+        if os.path.exists(fish_file_name(i)):
+            os.remove(fish_file_name(i))
+    
+except IOError or FileNotFoundError:
+    print("Loading Fisher matrix from Gaussian simulations")
+
+    fish = 0.
+    for i in range(1,N_mc//2+1):
+        fish += np.load(fish_file_name(i))
+    fish /= (N_mc//2)
+    
+    # Save combined Fisher matrix
+    np.save(combined_fish_file_name,fish)
+    print("Computed Fisher matrix from %d pairs of realizations and saved to %s\n"%(N_mc//2,combined_fish_file_name))
+
+    # Cleanup temporary files
+    for i in range(1,N_mc//2+1):
+        os.remove(fish_file_name(i))
+
+########################### COMPUTE g_a from data and random simulations ###########################
 
 print("\n## Computing g-a maps assuming %s weightings"%weight_type)
 
@@ -313,8 +346,10 @@ def bias_term(a,b,l_i):
 
 # Iterate over all possible triangles, creating q_alpha
 q_alpha = []
+
+# Compute 3-field term
 for a in range(n_k):
-    print("On primary k-bin %d of %d"%(a+1,n_k))
+    print("3-field: on primary bin %d of %d"%(a+1,n_k))
     g_a = all_g_a[0][a]
     for b in range(a,n_k):
         g_b = all_g_a[0][b]
@@ -327,33 +362,59 @@ for a in range(n_k):
                 gl_c = all_g_a[l_i][c]
 
                 ## Analyze this bin
-                if use_qbar:
-                    tmp_q = np.sum(g_a*g_b*gl_c-g_a*bias_term(b,c,l_i)-g_b*bias_term(c,a,l_i)-gl_c*bias_term(a,b,0))
-                else:
-                    tmp_q = np.sum(g_a*g_b*gl_c)
+                tmp_q = np.sum(g_a*g_b*gl_c)
                 q_out[l_i] = np.real_if_close(tmp_q)
             q_alpha.append(np.real_if_close(q_out))
+
+# Add 1-field term
+if use_qbar:
+    for ii in range(2,N_mc+2): # iterate over bias simulations
+        print("1-field: on MC simulation %d of %d"%(ii-1,N_mc))
+
+        # Load 1-field bias terms
+        mcdat = np.load(bias_file_name(ii))
+        all_g_a_mc = mcdat['g_a']
+        all_tg_a_mc = mcdat['tilde_g_a']
+        mcdat.close()
+
+        # Iteratve over bins
+        ind = 0
+        for a in range(n_k):
+            g_a = all_g_a[0][a]
+            g_a_mc = all_g_a_mc[0][a]
+            tg_a_mc = all_tg_a_mc[0][a]
+
+            for b in range(a,n_k):
+                g_b = all_g_a[0][b]
+                g_b_mc = all_g_a_mc[0][b]
+                tg_b_mc = all_tg_a_mc[0][b]
+
+                for c in range(b,n_k):
+                    # c is largest, by definition, so includes the Legendre polynomial
+                    if not test_bin(a,b,c): continue
+                    
+                    for l_i in range(lmax//2+1):
+                        gl_c = all_g_a[l_i][c]
+                        gl_c_mc = all_g_a_mc[l_i][c]
+                        tgl_c_mc = all_tg_a_mc[l_i][c]
+
+                        # Analyze this bin
+                        q_alpha[ind][l_i] -= 0.5*np.real_if_close(np.sum(g_a*g_b_mc*tgl_c_mc+g_b*gl_c_mc*tg_a_mc+gl_c*g_a_mc*tg_b_mc))/N_mc
+                        q_alpha[ind][l_i] -= 0.5*np.real_if_close(np.sum(g_a*tg_b_mc*gl_c_mc+g_b*tgl_c_mc*g_a_mc+gl_c*tg_a_mc*g_b_mc))/N_mc
+                    
+                    # Update bin index
+                    ind += 1
 
 # Add symmetry factor
 q_alpha = np.asarray(q_alpha)
 q_alpha = np.concatenate([q_alpha[:,l_i]/Delta_abc[l_i*(n_bins//n_l):(l_i+1)*(n_bins//n_l)] for l_i in range(lmax//2+1)])
-
-########################### CONSTRUCT FISHER MATRIX ###########################
-
-full_fish_file_name = outdir+'%s_mean%d_%s_full-fish_alpha_beta_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
-
-if not os.path.exists(full_fish_file_name):
-    raise Exception("Fisher matrix has not been computed; exiting!")
-
-print("\n## Loading Fisher matrix from file")
-full_fisher = np.load(full_fish_file_name)
 
 ########################### COMPUTE p_alpha ###########################
 
 print("\n## Computing p_alpha in %d bins assuming %s weightings"%(n_bins,weight_type))
 
 # Create output
-p_alpha = np.matmul(np.linalg.inv(full_fisher),q_alpha)
+p_alpha = np.matmul(np.linalg.inv(fish),q_alpha)
 
 ########################### SAVE & EXIT ###########################
 

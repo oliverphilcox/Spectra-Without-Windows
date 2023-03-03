@@ -51,6 +51,7 @@ assert (lmax//2)*2==lmax, "l-max must be even!"
 
 ## Directories
 outdir =  str(config['directories']['output'])
+mcdir =  str(config['directories']['monte_carlo'])
 
 # Redshifts
 ZMIN, ZMAX = float(config['sample']['z_min']), float(config['sample']['z_max'])
@@ -90,6 +91,7 @@ print("\nFiducial h = %.3f"%h_fid)
 print("Fiducial Omega_m = %.3f"%OmegaM_fid)
 print("\nN_mc: %d"%N_mc)
 print("Output Directory: %s"%outdir)
+print("Bias / Fisher Directory: %s"%mcdir)
 print("\n########################################################")
 
 init = time.time()
@@ -106,10 +108,10 @@ if os.path.exists(pk_file_name):
     sys.exit()
 
 # Check if relevant Fisher / bias simulations exist
-bias_file_name = lambda rand_it: outdir+'%s%d_%s_pk_q-bar_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
-fish_file_name = lambda rand_it: outdir+'%s%d_%s_pk_fish_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
-combined_bias_file_name = outdir + 'bias_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
-combined_fish_file_name = outdir + 'fisher_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
+bias_file_name = lambda rand_it: mcdir+'%s%d_%s_pk_q-bar_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
+fish_file_name = lambda rand_it: mcdir+'%s%d_%s_pk_fish_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
+combined_bias_file_name = outdir + 'bias-pk_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
+combined_fish_file_name = outdir + 'fisher-pk_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
 
 if not (os.path.exists(combined_bias_file_name) and os.path.exists(combined_fish_file_name)):
     for i in range(1,N_mc+1):
@@ -220,7 +222,7 @@ try:
             os.remove(bias_file_name(i))
     
 except IOError:
-    print("Loading bias term and Fisher matrix from uniform simulations")
+    print("Loading bias term and Fisher matrix from GRF simulations")
 
     fish = 0.
     bias = 0.

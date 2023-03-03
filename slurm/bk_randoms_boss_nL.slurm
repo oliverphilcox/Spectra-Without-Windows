@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=40
 #SBATCH -N 1
 #SBATCH -p cca
-#SBATCH --array=0-2
+#SBATCH --array=0-1
 #SBATCH --output=/mnt/home/ophilcox/out/boss_bk_nL_%a.log
 
 # Run 1 job per CPU

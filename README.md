@@ -18,7 +18,6 @@ The scripts in this repository have the following dependencies:
 - [sympy](https://www.sympy.org/en/index.html) (for generating spherical harmonics)
 - [pyfftw](https://github.com/pyFFTW/pyFFTW) (for FFTs)
 - [nbodykit](https://nbodykit.readthedocs.io/en/latest/) (for reading in data)
-- [fasteners](https://pypi.org/project/fasteners/) (for providing file overwrites in bispectrum computation)
 - [mangle](https://github.com/mollyswanson/manglepy) (for reading survey mask files)
 
 When applying the code to the BOSS survey, we use a number of products available on the BOSS [SAS](https://data.sdss.org/sas/dr12/boss/lss/), which are referenced in the relevant [paramfiles](paramfiles).

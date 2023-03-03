@@ -2,10 +2,9 @@
 
 ### Overview
 
-To compute bispectrum multipoles, there are three steps:
-1. Run the ```compute_bk_randoms.py``` script to generate and analyze randomly distributed particles. These are used to compute the Fisher matrix and average q-alpha term, encoding the survey geometry. This script should be run with around 100 choices of input parameter ```rand_it```.
-2. Run the ```compute_bk_fisher.py``` script to combine together the various contributions computed in step (1).
-3. Run the ```compute_bk_data.py``` script to analyze a specific simulation or dataset. Steps (1) and (2) must be computed before this is run.
+To compute bispectrum multipoles, there are two steps:
+1. Run the ```compute_bk_randoms.py``` script to generate and analyze randomly distributed particles. These are used to compute the Fisher matrix and q-alpha term, encoding the survey geometry. This script should be run with around 100 choices of input parameter ```rand_it```.
+3. Run the ```compute_bk_data.py``` script to analyze a specific simulation or dataset. Step (1) must be computed before this is run.
 
 The output bispectra will be saved as ```bk_{TYPE}{SIM_NO}....txt``` in the specified output directory. Note that the background density map ```n(r)``` must be generated before these scripts are run; this can be done using the [generate_mask.py](../generate_mask.py) script.
 
