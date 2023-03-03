@@ -49,8 +49,8 @@ OmegaM_fid = 0.31
 [directories]
 # to hold temporary output (should be large)
 temporary = /tmp/patchy_sL_
-# to hold simulated bias terms
-monte_carlo = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/biases/
+# to hold intermediate sums (should be large)
+monte_carlo = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/summed_phi_alpha/
 # to hold output analyis products
 output = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/
 

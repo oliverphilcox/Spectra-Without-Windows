@@ -1,6 +1,6 @@
 # compute_pk_randoms.py (Oliver Philcox, 2021)
 ### Compute the power spectrum of survey data with FKP or ML weightings
-### This computes the q-bar and F_ab terms from uniformly distributed randoms (independent of the survey geometry)
+### This computes the q-bar and F_ab terms from Gaussian distributed randoms (independent of the survey geometry)
 ### All input parameters (specifying the mask, k-cuts etc.) are specified in a given .param file
 
 # Import modules
@@ -9,7 +9,7 @@ import numpy as np, sys, os, time, configparser, shutil
 from scipy.interpolate import interp1d
 # custom definitions
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/../src')
-from opt_utilities import load_data, load_randoms, load_nbar, load_MAS, grid_data, grid_uniforms, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
+from opt_utilities import load_data, load_randoms, load_nbar, load_MAS, grid_data, load_coord_grids, compute_spherical_harmonic_functions, compute_filters, ft, ift
 from covariances_pk import applyC_alpha, applyN
 
 # Read command line arguments
@@ -50,6 +50,7 @@ assert (lmax//2)*2==lmax, "l-max must be even!"
 
 ## Directories
 outdir =  str(config['directories']['output'])
+mcdir = str(config['directories']['monte_carlo'])
 
 # Redshifts
 ZMIN, ZMAX = float(config['sample']['z_min']), float(config['sample']['z_max'])
@@ -83,6 +84,7 @@ if low_mem:
 
 # Create directories
 if not os.path.exists(outdir): os.makedirs(outdir)
+if not os.path.exists(mcdir): os.makedirs(mcdir)
 
 # Summarize parameters
 print("\n###################### PARAMETERS ######################\n")
@@ -101,6 +103,7 @@ print("l-max: %d"%lmax)
 print("\nFiducial h = %.3f"%h_fid)
 print("Fiducial Omega_m = %.3f"%OmegaM_fid)
 print("\nOutput Directory: %s"%outdir)
+print("\nBias / Fisher Directory: %s"%mcdir)
 if low_mem:
     print("\nTemporary Directory: %s"%tmpdir)
 print("\n########################################################")
@@ -110,41 +113,18 @@ init = time.time()
 ################################# LOAD DATA ####################################
 
 # First check that the simulation hasn't already been analyzed
-bias_file_name = outdir+'%s%d_%s_pk_q-bar_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
-fish_file_name = outdir+'%s%d_%s_pk_fish_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
-bias_file_name_a = lambda alpha: outdir+'%s%d_%s_pk_q-bar%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,k_min,k_max,dk,lmax)
-fish_file_name_ab = lambda alpha,beta: outdir+'%s%d_%s_pk_fish%d,%d_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,alpha,beta,k_min,k_max,dk,lmax)
-combined_bias_file_name = outdir + 'bias_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
-combined_fish_file_name = outdir + 'fisher_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
+bias_file_name = mcdir+'%s%d_%s_pk_q-bar_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
+fish_file_name = mcdir+'%s%d_%s_pk_fish_a_k%.3f_%.3f_%.3f_l%d.npy'%(string,rand_it,weight_type,k_min,k_max,dk,lmax)
+combined_bias_file_name = outdir + 'bias-pk_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
+combined_fish_file_name = outdir + 'fisher-pk_%s%d_%s_k%.3f_%.3f_%.3f_l%d.npy'%(string,N_mc,weight_type,k_min,k_max,dk,lmax)
 
 if os.path.exists(bias_file_name) and os.path.exists(fish_file_name):
-    print("Simulation already completed; performing clean-up and exiting!\n")
-
-    # Clean up any residual files
-    n_k = int((k_max-k_min)/dk)
-    n_bins = n_k*(lmax//2+1)
-    for alpha in range(n_bins):
-        for beta in range(n_bins):
-            if os.path.exists(fish_file_name_ab(alpha,beta)): os.remove(fish_file_name_ab(alpha,beta))
-        if os.path.exists(bias_file_name_a(alpha)): os.remove(bias_file_name_a(alpha))
-    
-    # Exit
+    print("Simulation already completed; exiting!\n")
     sys.exit()
 
 if os.path.exists(combined_bias_file_name) and os.path.exists(combined_fish_file_name):
-    print("Full Fisher matrices already completed; performing clean-up and exiting!\n")
-
-    # Clean up any residual files
-    n_k = int((k_max-k_min)/dk)
-    n_bins = n_k*(lmax//2+1)
-    for alpha in range(n_bins):
-        for beta in range(n_bins):
-            if os.path.exists(fish_file_name_ab(alpha,beta)): os.remove(fish_file_name_ab(alpha,beta))
-        if os.path.exists(bias_file_name_a(alpha)): os.remove(bias_file_name_a(alpha))
-    
-    # Exit
+    print("Full Fisher matrices already completed; exiting!\n")
     sys.exit()
-
 
 print("\n## Loading %s random iteration %d with %s weights"%(string,rand_it,weight_type))
 
@@ -264,16 +244,11 @@ del Ainv_diff
 
 ### Compute Fisher matrix and bias term, saving each element in turn
 print("## Computing Fisher and bias term")
+fish = np.zeros((n_bins,n_bins))
+q_bias = np.zeros(n_bins)
 
 for alpha in range(n_bins):
     if (alpha+1)%5==0: print("On bin %d of %d"%(alpha+1,n_bins))
-
-    # Check if this needs to be analyzed:
-    skip = True
-    for beta in range(n_bins):
-        if not os.path.exists(fish_file_name_ab(alpha,beta)): skip=False
-    if not os.path.exists(bias_file_name_a(alpha)): skip=False
-    if skip: continue
 
     if low_mem:
         ### Compute C_a C^-1 a on the fly
@@ -288,51 +263,19 @@ for alpha in range(n_bins):
     else:
         this_Cinv_C_a_Cinv_diff = Cinv_C_a_Cinv_diff[alpha]
 
-    # Compute bias term and save
-    np.save(bias_file_name_a(alpha),0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*N_Ainv_a)))
-
+    # Compute bias term
+    q_bias[alpha] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*N_Ainv_a))
+    
+    # Compute Fisher term
     for beta in range(n_bins):
-        if os.path.exists(fish_file_name_ab(alpha,beta)): continue
         if low_mem:
-            this_fish = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*np.load(tmpdir+'C_a_Ai_%d.npy'%beta)))
+            fish[alpha,beta] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*np.load(tmpdir+'C_a_Ai_%d.npy'%beta)))
         else:
-            this_fish = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*C_a_Ainv_diff[beta]))
-        np.save(fish_file_name_ab(alpha,beta),this_fish)
-        del this_fish
+            fish[alpha,beta] = 0.5*np.real_if_close(np.sum(this_Cinv_C_a_Cinv_diff*C_a_Ainv_diff[beta]))
     del this_Cinv_C_a_Cinv_diff
 
 if not low_mem: del C_a_Ainv_diff, Cinv_C_a_Cinv_diff
 del N_Ainv_a, Cinv_diff, nbar, k_norm, nbar_weight, MAS_mat, Y_lms, k_grids, r_grids
-
-# Compute all Fisher elements
-fish = np.zeros((n_bins,n_bins))
-q_bias = np.zeros(n_bins)
-
-print("\nReconstructing bias and Fisher matrix from saved entries")
-exit = 0
-for alpha in range(n_bins):
-    try:
-        q_bias[alpha] = np.real(np.load(bias_file_name_a(alpha),allow_pickle=True))
-    except IOError:
-        os.remove(bias_file_name_a(alpha))
-        print("Bias %d not saved correctly!"%alpha)
-        exit += 1
-    for beta in range(n_bins):
-        try:
-	        fish[alpha,beta] = np.real(np.load(fish_file_name_ab(alpha,beta),allow_pickle=True))
-        except IOError:
-            os.remove(fish_file_name_ab(alpha,beta))
-            print("Fisher %d,%d not saved correctly!"%(alpha,beta))
-            exit += 1
-if exit>0:
-    print("\n%d fisher/bias elements not saved correctly!"%exit)
-    sys.exit()
-
-## Delete the temporary files
-for alpha in range(n_bins):
-    for beta in range(n_bins):
-        os.remove(fish_file_name_ab(alpha,beta))
-    os.remove(bias_file_name_a(alpha))
 
 ## Symmetrize matrix
 fish = 0.5*(fish+fish.T)

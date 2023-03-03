@@ -5,11 +5,11 @@
 #SBATCH --mail-user=ohp2105@columbia.edu
 #SBATCH --ntasks=1
 #SBATCH --time=47:58:59
-#SBATCH --mem=1000gb
+#SBATCH --mem=500gb
 #SBATCH --cpus-per-task=20
 #SBATCH -N 1
 #SBATCH -p cca
-#SBATCH --array=0-4
+#SBATCH --array=0-2
 #SBATCH --output=/mnt/home/ophilcox/out/patchy_bk_nC_%a.log
 
 # Run 1 job per CPU

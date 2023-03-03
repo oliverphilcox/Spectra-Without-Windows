@@ -1,16 +1,16 @@
-### Parameter file for the Patchy SGC LOWZ dataset
+### Parameter file for the Patchy NGC CMASS dataset
 
 [catalogs]
 # Input data, and column labels
 # If multiple simulations are used, the data file-name should contain "%d", which will be replaced by the simulation number.
 # If only one simulation is used, no "%d" should be included, and the simulation-number should be set to -1.
-data_file = /mnt/ceph/users/ophilcox/patchy_mocks/Patchy-Mocks-DR12LOWZ-S-V5C-Portsmouth-mass_%d.dat
+data_file = /mnt/ceph/users/ophilcox/patchy_mocks/Patchy-Mocks-DR12CMASS-N-V6C-Portsmouth-mass_%d.dat
 data_columns = RA, DEC, Z, MSTAR, NBAR, BIAS, VETO FLAG, FIBER COLLISION
 # Input randoms, and column labels
-randoms_file = /mnt/ceph/users/ophilcox/patchy_mocks/Random-DR12LOWZ-S-V5C-x100.dat
+randoms_file = /mnt/ceph/users/ophilcox/patchy_mocks/Random-DR12CMASS-N-V6C-x100.dat
 randoms_columns = RA, DEC, Z, NBAR, BIAS, VETO FLAG, FIBER COLLISION
 # Mangle mask file
-mask_file = /mnt/ceph/users/ophilcox/boss_dr12/mask_DR12v5_LOWZ_South.ply
+mask_file = /mnt/ceph/users/ophilcox/boss_dr12/mask_DR12v5_CMASS_North.ply
 
 [pk-binning]
 # k-space binning parameters
@@ -20,7 +20,7 @@ dk = 0.01
 # Maximum (even) Legendre multipole
 lmax = 4
 # Number of grid cells per dimension
-grid = 138,252,144
+grid = 258, 496, 274
 
 [bk-binning]
 # k-space binning parameters
@@ -30,16 +30,16 @@ dk = 0.01
 # Maximum (even) Legendre multipole
 lmax = 4
 # Number of grid cells per dimension
-grid = 92,168,96
+grid = 172, 330, 182
 
 [sample]
 # Type of data (prepended to file names)
-type = patchy_sL_
+type = patchy_nC_
 # Redshift range
-z_min = 0.15
-z_max = 0.43
+z_min = 0.43
+z_max = 0.70
 # Boxsize in Mpc/h
-box = 950, 1750,1000
+box = 1800, 3450, 1900
 
 [parameters]
 # Cosmological parameters used for coordinate conversions
@@ -48,9 +48,9 @@ OmegaM_fid = 0.31
 
 [directories]
 # to hold temporary output (should be large)
-temporary = /tmp/patchy_sL_
-# to hold simulated bias terms
-monte_carlo = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/biases/
+temporary = /tmp/patchy_nC_
+# to hold intermediate sums (should be large)
+monte_carlo = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/summed_phi_alpha/
 # to hold output analyis products
 output = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/
 

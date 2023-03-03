@@ -1,14 +1,14 @@
-### Parameter file for the Patchy SGC LOWZ dataset
+### Parameter file for the BOSS SGC LOWZ dataset
 
 [catalogs]
 # Input data, and column labels
 # If multiple simulations are used, the data file-name should contain "%d", which will be replaced by the simulation number.
 # If only one simulation is used, no "%d" should be included, and the simulation-number should be set to -1.
-data_file = /mnt/ceph/users/ophilcox/patchy_mocks/Patchy-Mocks-DR12LOWZ-S-V5C-Portsmouth-mass_%d.dat
-data_columns = RA, DEC, Z, MSTAR, NBAR, BIAS, VETO FLAG, FIBER COLLISION
+data_file = /mnt/ceph/users/ophilcox/boss_dr12/galaxy_DR12v5_LOWZ_South.fits
+data_columns = 
 # Input randoms, and column labels
-randoms_file = /mnt/ceph/users/ophilcox/patchy_mocks/Random-DR12LOWZ-S-V5C-x100.dat
-randoms_columns = RA, DEC, Z, NBAR, BIAS, VETO FLAG, FIBER COLLISION
+randoms_file = /mnt/ceph/users/ophilcox/boss_dr12/random0_DR12v5_LOWZ_South.fits
+randoms_columns = 
 # Mangle mask file
 mask_file = /mnt/ceph/users/ophilcox/boss_dr12/mask_DR12v5_LOWZ_South.ply
 
@@ -34,7 +34,7 @@ grid = 92,168,96
 
 [sample]
 # Type of data (prepended to file names)
-type = patchy_sL_
+type = boss_sL_
 # Redshift range
 z_min = 0.15
 z_max = 0.43
@@ -48,11 +48,11 @@ OmegaM_fid = 0.31
 
 [directories]
 # to hold temporary output (should be large)
-temporary = /tmp/patchy_sL_
-# to hold simulated bias terms
-monte_carlo = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/biases/
+temporary = /tmp/boss_sL_
+# to hold intermediate sums (should be large)
+monte_carlo = /mnt/ceph/users/ophilcox/boss_pkbk_CL/summed_phi_alpha/
 # to hold output analyis products
-output = /mnt/ceph/users/ophilcox/patchy_pkbk_CL/
+output = /mnt/ceph/users/ophilcox/boss_pkbk_CL/
 
 ### Additional settings, mostly used for testing
 [settings]
