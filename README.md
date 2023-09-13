@@ -39,5 +39,7 @@ Codes and data from this repository are used in the following publications:
 - Rogers et al. (2023, [arXiv](https://arxiv.org/abs/2301.08361)): Ultra-light axions and the S8 tension: joint constraints from the cosmic microwave background and galaxy clustering.
 - Ivanov et al. (2023, [arXiv](https://arxiv.org/abs/2302.04414)): Cosmology with the Galaxy Bispectrum Multipoles: Optimal Estimation and Application to BOSS Data.
 - Moretti et al. (2023, [arXiv](https://arxiv.org/abs/2306.09275)): Constraints on the growth index and neutrino mass from the BOSS power spectrum.
+- He et al. (2023, [arXiv](https://arxiv.org/abs/2309.03956)): Self-Interacting Neutrinos in Light of Large-Scale Structure Data.
+- Camarena et al. (2023, [arXiv](https://arxiv.org/abs/2309.03941)): The two-mode puzzle: Confronting self-interacting neutrinos with the full shape of the galaxy power spectrum 
 
 **NB**: This code formerly appeared as ``BOSS-Without-Windows``, with the BOSS survey specifications hardcoded. For posterity, the original version of the code can be found on this [branch](https://github.com/oliverphilcox/Spectra-Without-Windows/tree/boss-specific-code).
