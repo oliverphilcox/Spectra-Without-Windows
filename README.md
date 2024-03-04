@@ -1,6 +1,8 @@
 # Spectra Without Windows
 
-This repository contains details of the window-free analysis of non-uniform spectroscopic data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), [Philcox 2021](https://arxiv.org/abs/2107.06287) and [Ivanov et al. 2023](https://arxiv.org/abs/2302.04414), and additionally contains the data generated for the BOSS power spectrum and bispectrum analysis of [Philcox & Ivanov 2021](https://arxiv.org/abs/2112.04515) and subsequent works.
+***This code has now been replaced by the newer and more powerful 3D polyspectrum code [PolyBin3D](https://github.com/oliverphilcox/PolyBin3D).***
+
+This repository contains details of the window-free analysis of non-uniform spectroscopic data. This uses the quadratic and cubic estimators described in [Philcox 2020](https://arxiv.org/abs/2012.09389), [Philcox 2021](https://arxiv.org/abs/2107.06287) and [Ivanov et al. 2023](https://arxiv.org/abs/2302.04414), and additionally contains the data generated for the BOSS power spectrum and bispectrum analysis of [Philcox & Ivanov 2021](https://arxiv.org/abs/2112.04515) and subsequent works. 
 
 ## Outline
 - [pk/](pk): Analysis code to estimate unwindowed power spectrum multipoles. We additionally supply the raw power spectrum measurements of BOSS, 2048 Patchy simulations and 84 Nseries simulations.
